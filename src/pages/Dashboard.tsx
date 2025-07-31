@@ -15,6 +15,9 @@ import {
   CalendarDays
 } from "lucide-react";
 import dairyHero from "@/assets/dairy-hero.jpg";
+import { useQuery } from "@/hooks/useApi";
+import { apiCall } from "@/lib/apiCall";
+import { allRoutes } from "@/lib/apiRoutes";
 
 const recentOrders = [
   { id: "ORD-001", customer: "Raj Dairy Store", items: "100L Milk, 5kg Paneer", status: "pending", time: "2 hours ago" },
@@ -37,6 +40,24 @@ const todayMilkCollection = [
 export default function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  // Example of using API hooks
+  const { data: dashboardStats, loading: statsLoading, error: statsError } = useQuery(
+    () => apiCall(allRoutes.dashboard.getStats, 'get'),
+    {
+      autoExecute: true,
+      onError: (error) => {
+        console.error('Failed to load dashboard stats:', error);
+      }
+    }
+  );
+
+  const { data: lowStockAlerts, loading: alertsLoading } = useQuery(
+    () => apiCall(allRoutes.dashboard.getLowStockAlerts, 'get'),
+    {
+      autoExecute: true
+    }
+  );
 
   const handleAddNewProduct = () => {
     navigate('/inventory');

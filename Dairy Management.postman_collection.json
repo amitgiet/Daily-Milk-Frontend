@@ -1,0 +1,251 @@
+{
+	"info": {
+		"_postman_id": "cbf75b4e-284c-4a35-b9d2-7956a6ed4ee6",
+		"name": "Dairy Management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "45076936",
+		"_collection_link": "https://dailyfitness.postman.co/workspace/Daily-Fitness~93565708-a829-456a-bc43-843aeeccd92c/collection/33527038-cbf75b4e-284c-4a35-b9d2-7956a6ed4ee6?action=share&source=collection_link&creator=45076936"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Registeration",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\" : \"Shambhu meena\",\n    \"phone\" : \"9636044933\",\n    \"password\" : \"12345678\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base-url}}/auth/registeration",
+							"host": [
+								"{{base-url}}"
+							],
+							"path": [
+								"auth",
+								"registeration"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Get accessToken from the response",
+									"const jsonData = pm.response.json();",
+									"if (jsonData.accessToken) {",
+									"    // Set as environment variable",
+									"    pm.environment.set(\"token\", jsonData.accessToken);",
+									"    console.log(\"Access token saved to environment\");",
+									"} else {",
+									"    console.warn(\"Access token not found in response\");",
+									"}",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\" : \"9636044933\",\n    \"password\" : \"12345678\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base-url}}/auth/login",
+							"host": [
+								"{{base-url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\" : \"9636044933\" \n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base-url}}/auth/forgot-password",
+							"host": [
+								"{{base-url}}"
+							],
+							"path": [
+								"auth",
+								"forgot-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "OTP Verify",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\" : \"9636044933\",\n    \"otp\" : \"123652\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base-url}}/auth/otp-verify",
+							"host": [
+								"{{base-url}}"
+							],
+							"path": [
+								"auth",
+								"otp-verify"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone\" : \"9636044933\",\n    \"new_password\" : \"123456\",\n    \"confirm_password\":\"123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base-url}}/auth/change-password",
+							"host": [
+								"{{base-url}}"
+							],
+							"path": [
+								"auth",
+								"change-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": " {}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base-url}}/auth/refresh",
+							"host": [
+								"{{base-url}}"
+							],
+							"path": [
+								"auth",
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Farmers",
+			"item": [
+				{
+					"name": "Add",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\" : \"Bharat\",\n    \"phone\" : \"9636044966\",\n    \"password\" : \"123456\",\n    \"dairyId\":1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base-url}}/admin/farmers",
+							"host": [
+								"{{base-url}}"
+							],
+							"path": [
+								"admin",
+								"farmers"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

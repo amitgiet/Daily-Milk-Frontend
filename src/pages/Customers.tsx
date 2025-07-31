@@ -15,6 +15,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { apiCall } from "@/lib/apiCall";
+import { allRoutes } from "@/lib/apiRoutes";
 
 // Interface for milk purchase history
 interface MilkPurchaseHistory {
@@ -176,6 +178,41 @@ export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomersData);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [viewHistoryCustomer, setViewHistoryCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Example of using apiCall utility to fetch farmers
+  const fetchFarmers = async () => {
+    setLoading(true);
+    try {
+      const response = await apiCall(allRoutes.farmers.getAll, 'get');
+      if (response.success && response.data) {
+        // Transform API data to match our Customer interface
+        const transformedData = response.data.map((farmer: Record<string, unknown>) => ({
+          id: farmer.id,
+          name: farmer.name,
+          contact: farmer.phone,
+          email: farmer.email || '',
+          address: farmer.address || '',
+          totalPurchases: farmer.totalPurchases || 0,
+          totalAmount: farmer.totalAmount || 0,
+          pendingAmount: farmer.pendingAmount || 0,
+          status: farmer.status || 'active',
+          lastPurchase: farmer.lastPurchase || new Date().toISOString().split('T')[0],
+          milkHistory: farmer.milkHistory || []
+        }));
+        setCustomers(transformedData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch farmers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load farmers data on component mount
+  useEffect(() => {
+    fetchFarmers();
+  }, []);
 
   const {
     register,

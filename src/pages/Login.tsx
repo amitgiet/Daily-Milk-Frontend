@@ -14,10 +14,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiCall } from "@/lib/apiCall";
+import { allRoutes } from "@/lib/apiRoutes";
 
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -31,13 +35,13 @@ const Login = () => {
   const [contactAdminSuccess, setContactAdminSuccess] = useState(false);
 
   const loginSchema = z.object({
-    email: z.string().email(t('login.emailError')),
+    phone: z.string().min(10, t('login.phoneError')),
     password: z.string().min(6, t('login.passwordError')),
     rememberMe: z.boolean().optional()
   });
 
   const forgotPasswordSchema = z.object({
-    email: z.string().email(t('login.emailError'))
+    phone: z.string().min(10, t('login.phoneError'))
   });
 
   const contactAdminSchema = z.object({
@@ -57,7 +61,7 @@ const Login = () => {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      phone: "",
       password: "",
       rememberMe: false
     }
@@ -71,7 +75,7 @@ const Login = () => {
   } = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
-      email: ""
+      phone: ""
     }
   });
 
@@ -94,25 +98,17 @@ const Login = () => {
     setLoginError("");
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const success = await login(data.phone, data.password);
       
-      // Mock authentication - in real app, validate against backend
-      if (data.email === "admin@milkyway.com" && data.password === "admin123") {
-        // Store auth token/user data (in real app, use proper auth)
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userEmail', data.email);
-        if (data.rememberMe) {
-          localStorage.setItem('rememberMe', 'true');
-        }
-        
-        // Redirect to dashboard
-        navigate('/dashboard');
+      if (success) {
+        // Navigate to dashboard on successful login
+        navigate("/dashboard");
       } else {
         setLoginError(t('login.invalidCredentials'));
       }
-    } catch (error) {
-      setLoginError(t('login.loginError'));
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : t('login.loginError');
+      setLoginError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -124,14 +120,12 @@ const Login = () => {
     setForgotPasswordSuccess(false);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await apiCall(allRoutes.auth.forgotPassword, 'post', { phone: data.phone });
       
-      // Mock forgot password logic - in real app, send email to backend
-      if (data.email === "admin@milkyway.com" || data.email.includes("@")) {
+      if (response.success) {
         setForgotPasswordSuccess(true);
       } else {
-        setForgotPasswordError(t('login.emailNotFound'));
+        setForgotPasswordError(t('login.phoneNotFound'));
       }
     } catch (error) {
       setForgotPasswordError(t('login.forgotPasswordError'));
@@ -211,19 +205,19 @@ const Login = () => {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">{t('auth.email')}</Label>
+                <Label htmlFor="phone">{t('auth.phone')}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder={t('login.emailPlaceholder')}
+                    id="phone"
+                    type="tel"
+                    placeholder={t('login.phonePlaceholder')}
                     className="pl-10"
-                    {...register("email")}
+                    {...register("phone")}
                   />
                 </div>
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                {errors.phone && (
+                  <p className="text-sm text-destructive">{errors.phone.message}</p>
                 )}
               </div>
 
@@ -311,8 +305,8 @@ const Login = () => {
           <div className="mt-6 p-4 bg-muted/50 rounded-lg">
             <h4 className="text-sm font-medium text-foreground mb-2">{t('login.demoCredentials')}:</h4>
             <div className="text-sm text-muted-foreground space-y-1">
-              <p><strong>{t('auth.email')}:</strong> admin@milkyway.com</p>
-              <p><strong>{t('auth.password')}:</strong> admin123</p>
+              <p><strong>{t('auth.phone')}:</strong> 9636044933</p>
+              <p><strong>{t('auth.password')}:</strong> 12345678</p>
             </div>
           </div>
         </CardContent>
@@ -385,19 +379,19 @@ const Login = () => {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="forgot-email">{t('auth.email')}</Label>
+                  <Label htmlFor="forgot-phone">{t('auth.phone')}</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
-                      id="forgot-email"
-                      type="email"
-                      placeholder={t('login.emailPlaceholder')}
+                      id="forgot-phone"
+                      type="tel"
+                      placeholder={t('login.phonePlaceholder')}
                       className="pl-10"
-                      {...registerForgot("email")}
+                      {...registerForgot("phone")}
                     />
                   </div>
-                  {forgotErrors.email && (
-                    <p className="text-sm text-destructive">{forgotErrors.email.message}</p>
+                  {forgotErrors.phone && (
+                    <p className="text-sm text-destructive">{forgotErrors.phone.message}</p>
                   )}
                 </div>
               </div>

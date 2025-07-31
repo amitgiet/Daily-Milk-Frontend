@@ -14,7 +14,8 @@ import {
   X,
   Milk,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "./LanguageSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -37,6 +39,7 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user, logout } = useAuth();
 
   const navigation = [
     { name: t('navigation.dashboard'), href: "/", icon: Home },
@@ -45,17 +48,16 @@ export default function Layout({ children }: LayoutProps) {
     { name: t('navigation.customers'), href: "/customers", icon: User },
     { name: t('navigation.orders'), href: "/orders", icon: ShoppingCart },
     { name: t('navigation.reports'), href: "/reports", icon: BarChart3 },
+    { name: t('navigation.subscriptionPlans'), href: "/subscription-plans", icon: CreditCard },
     { name: t('navigation.settings'), href: "/settings", icon: Settings },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('rememberMe');
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
-  const userEmail = localStorage.getItem('userEmail') || 'admin@milkyway.com';
+  const userEmail = user?.email || user?.phoneNumber || 'admin@milkyway.com';
 
   return (
     <div className="min-h-screen bg-background">

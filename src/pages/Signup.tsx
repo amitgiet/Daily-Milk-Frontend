@@ -11,10 +11,11 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
 
 const signupSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
+  name: z.string().min(2, "Full name must be at least 2 characters"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
   referralCode: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
@@ -28,6 +29,7 @@ type SignupFormData = z.infer<typeof signupSchema>;
 export default function Signup() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { register: registerUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -47,22 +49,24 @@ export default function Signup() {
     setSuccess("");
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // For demo purposes, simulate successful registration
-      setSuccess("Account created successfully! Please check your email for verification.");
+      const success = await registerUser(data);
       
-      // Reset form
-      reset();
-      
-      // Redirect to login after 3 seconds
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
-
-    } catch (err) {
-      setError("Failed to create account. Please try again.");
+      if (success) {
+        setSuccess("Account created successfully! Please check your email for verification.");
+        
+        // Reset form
+        reset();
+        
+        // Redirect to login after 3 seconds
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+      } else {
+        setError("Failed to create account. Please try again.");
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create account. Please try again.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -94,36 +98,36 @@ export default function Signup() {
                          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                {/* Full Name */}
                <div className="space-y-2">
-                 <Label htmlFor="fullName" className="flex items-center gap-2">
+                 <Label htmlFor="name" className="flex items-center gap-2">
                    <User className="h-4 w-4" />
                    {t('signup.fullName')} *
                  </Label>
                  <Input
-                   id="fullName"
+                   id="name"
                    placeholder={t('signup.fullNamePlaceholder')}
-                   {...register("fullName")}
-                   className={errors.fullName ? "border-destructive" : ""}
+                   {...register("name")}
+                   className={errors.name ? "border-destructive" : ""}
                  />
-                 {errors.fullName && (
-                   <p className="text-sm text-destructive">{errors.fullName.message}</p>
+                 {errors.name && (
+                   <p className="text-sm text-destructive">{errors.name.message}</p>
                  )}
                </div>
 
                {/* Phone Number */}
                <div className="space-y-2">
-                 <Label htmlFor="phoneNumber" className="flex items-center gap-2">
+                 <Label htmlFor="phone" className="flex items-center gap-2">
                    <Phone className="h-4 w-4" />
                    {t('signup.phoneNumber')} *
                  </Label>
                  <Input
-                   id="phoneNumber"
+                   id="phone"
                    type="tel"
                    placeholder={t('signup.phoneNumberPlaceholder')}
-                   {...register("phoneNumber")}
-                   className={errors.phoneNumber ? "border-destructive" : ""}
+                   {...register("phone")}
+                   className={errors.phone ? "border-destructive" : ""}
                  />
-                 {errors.phoneNumber && (
-                   <p className="text-sm text-destructive">{errors.phoneNumber.message}</p>
+                 {errors.phone && (
+                   <p className="text-sm text-destructive">{errors.phone.message}</p>
                  )}
                </div>
 
