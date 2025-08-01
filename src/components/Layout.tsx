@@ -15,7 +15,8 @@ import {
   Milk,
   LogOut,
   ChevronDown,
-  CreditCard
+  CreditCard,
+  Calculator
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: t('navigation.dashboard'), href: "/", icon: Home },
     { name: t('navigation.inventory'), href: "/inventory", icon: Package },
     { name: t('navigation.milkCollection'), href: "/milk-collection", icon: Milk },
+    { name: t('navigation.dairyRates'), href: "/dairy-rates", icon: Calculator },
     { name: t('navigation.customers'), href: "/customers", icon: User },
     { name: t('navigation.orders'), href: "/orders", icon: ShoppingCart },
     { name: t('navigation.reports'), href: "/reports", icon: BarChart3 },
@@ -57,7 +59,7 @@ export default function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
-  const userEmail = user?.email || user?.phoneNumber || 'admin@milkyway.com';
+  const userEmail = user?.email || user?.phone || 'admin@milkyway.com';
 
   return (
     <div className="min-h-screen bg-background">

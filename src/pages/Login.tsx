@@ -46,7 +46,7 @@ const Login = () => {
 
   const contactAdminSchema = z.object({
     name: z.string().min(2, t('login.nameError')),
-    email: z.string().email(t('login.emailError')),
+    phone: z.string().min(10, t('login.phoneError')),
     message: z.string().min(10, t('login.messageError'))
   });
 
@@ -88,7 +88,7 @@ const Login = () => {
     resolver: zodResolver(contactAdminSchema),
     defaultValues: {
       name: "",
-      email: "",
+      phone: "",
       message: ""
     }
   });
@@ -151,7 +151,7 @@ const Login = () => {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Mock contact admin logic - in real app, send message to backend
-      if (data.name && data.email && data.message) {
+      if (data.name && data.phone && data.message) {
         setContactAdminSuccess(true);
       } else {
         setContactAdminError(t('login.fillAllFields'));
@@ -177,7 +177,7 @@ const Login = () => {
         <LanguageSwitcher />
       </div>
       
-      <Card className="w-full max-w-md shadow-lg">
+      {/* <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="bg-primary/10 p-3 rounded-full">
@@ -301,7 +301,6 @@ const Login = () => {
             </p>
           </div>
 
-          {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-muted/50 rounded-lg">
             <h4 className="text-sm font-medium text-foreground mb-2">{t('login.demoCredentials')}:</h4>
             <div className="text-sm text-muted-foreground space-y-1">
@@ -311,8 +310,6 @@ const Login = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Forgot Password Dialog */}
       <Dialog open={showForgotPassword} onOpenChange={(open) => {
         if (!open) handleCloseForgotPassword();
       }}>
@@ -425,7 +422,6 @@ const Login = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Contact Administrator Dialog */}
       <Dialog open={showContactAdmin} onOpenChange={(open) => {
         if (!open) handleCloseContactAdmin();
       }}>
@@ -505,19 +501,19 @@ const Login = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contact-email">{t('auth.email')}</Label>
+                  <Label htmlFor="contact-phone">{t('auth.phone')}</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
-                      id="contact-email"
-                      type="email"
-                      placeholder={t('login.emailPlaceholder')}
+                      id="contact-phone"
+                      type="tel"
+                      placeholder={t('login.phonePlaceholder')}
                       className="pl-10"
-                      {...registerContact("email")}
+                      {...registerContact("phone")}
                     />
                   </div>
-                  {contactErrors.email && (
-                    <p className="text-sm text-destructive">{contactErrors.email.message}</p>
+                  {contactErrors.phone && (
+                    <p className="text-sm text-destructive">{contactErrors.phone.message}</p>
                   )}
                 </div>
 
@@ -568,7 +564,7 @@ const Login = () => {
             </form>
           )}
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
     </div>
   );
 };

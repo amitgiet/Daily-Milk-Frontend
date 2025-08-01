@@ -1,60 +1,49 @@
 // API Routes organized by feature
 export const allRoutes = {
-  // Auth Routes
   auth: {
-    login: '/auth/login',
     register: '/auth/registeration',
-    refresh: '/auth/refresh',
+    login: '/auth/login',
     forgotPassword: '/auth/forgot-password',
     otpVerify: '/auth/otp-verify',
     changePassword: '/auth/change-password',
+    refreshToken: '/auth/refresh',
+    logout: '/auth/logout'
   },
-
-  // Farmers Routes
   farmers: {
-    getAll: '/admin/farmers',
-    getById: (id: string) => `/admin/farmers/${id}`,
-    create: '/admin/farmers',
-    update: (id: string) => `/admin/farmers/${id}`,
-    delete: (id: string) => `/admin/farmers/${id}`,
-    getMilkHistory: (id: string) => `/admin/farmers/${id}/milk-history`,
+    list: '/admin/farmers',
+    add: '/admin/farmers',
+    update: (id: string | number) => `/admin/farmers/${id}`,
+    get: (id: string | number) => `/admin/farmers/${id}`,
+    delete: (id: string | number) => `/admin/farmers/${id}`
   },
-
-  // Milk Collection Routes
   milkCollection: {
-    getToday: '/milk-collection/today',
-    getByDate: (date: string) => `/milk-collection/date/${date}`,
-    addEntry: '/milk-collection/entries',
-    updateEntry: (id: string) => `/milk-collection/entries/${id}`,
-    deleteEntry: (id: string) => `/milk-collection/entries/${id}`,
-    getSummary: '/milk-collection/summary',
-    exportData: (date: string) => `/milk-collection/export/${date}`,
+    collect: '/admin/milk/collect',
+    list: '/admin/milk/list',
+    get: (id: string | number) => `/admin/milk/${id}`,
+    update: (id: string | number) => `/admin/milk/${id}`,
+    delete: (id: string | number) => `/admin/milk/${id}`
   },
-
-  // Inventory Routes
   inventory: {
-    getProducts: '/inventory/products',
-    getProduct: (id: string) => `/inventory/products/${id}`,
-    createProduct: '/inventory/products',
-    updateProduct: (id: string) => `/inventory/products/${id}`,
-    deleteProduct: (id: string) => `/inventory/products/${id}`,
-    adjustStock: (id: string) => `/inventory/products/${id}/stock`,
-    getStockHistory: (id: string) => `/inventory/products/${id}/stock-history`,
+    list: '/admin/inventory',
+    add: '/admin/inventory',
+    update: (id: string | number) => `/admin/inventory/${id}`,
+    get: (id: string | number) => `/admin/inventory/${id}`,
+    delete: (id: string | number) => `/admin/inventory/${id}`,
+    adjustStock: (id: string | number) => `/admin/inventory/${id}/adjust-stock`
   },
-
-  // Dashboard Routes
   dashboard: {
-    getStats: '/dashboard/stats',
-    getRecentActivities: '/dashboard/recent-activities',
-    getSalesChart: '/dashboard/sales-chart',
-    getLowStockAlerts: '/dashboard/low-stock-alerts',
+    stats: '/admin/dashboard/stats',
+    lowStockAlerts: '/admin/dashboard/low-stock-alerts',
+    recentActivity: '/admin/dashboard/recent-activity'
   },
-
-  // Reports Routes
   reports: {
-    generateSalesReport: '/reports/sales',
-    generateInventoryReport: '/reports/inventory',
-    generateMilkReport: '/reports/milk-collection',
-    downloadReport: (reportId: string) => `/reports/download/${reportId}`,
+    sales: '/admin/reports/sales',
+    inventory: '/admin/reports/inventory',
+    farmers: '/admin/reports/farmers',
+    milkCollection: '/admin/reports/milk-collection'
   },
+  dairy: {
+    rates: '/admin/dairy/rates',
+    updateRates: '/admin/dairy/rates'
+  }
 }; 

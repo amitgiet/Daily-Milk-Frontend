@@ -11,6 +11,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import MilkCollection from "./pages/MilkCollection";
+import DairyRates from "./pages/DairyRates";
 import Customers from "./pages/Customers";
 import Orders from "./pages/Orders";
 import Reports from "./pages/Reports";
@@ -27,27 +28,37 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-                  <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="*" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/inventory" element={<Inventory />} />
-                    <Route path="/milk-collection" element={<MilkCollection />} />
-                    <Route path="/customers" element={<Customers />} />
-                    <Route path="/orders" element={<Orders />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/subscription-plans" element={<SubscriptionPlans />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Layout>
-              </ProtectedRoute>
-            } />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route
+              path="*"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/inventory" element={<Inventory />} />
+                      <Route
+                        path="/milk-collection"
+                        element={<MilkCollection />}
+                      />
+                      <Route path="/dairy-rates" element={<DairyRates />} />
+                      <Route path="/customers" element={<Customers />} />
+                      <Route path="/orders" element={<Orders />} />
+                      <Route path="/reports" element={<Reports />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route
+                        path="/subscription-plans"
+                        element={<SubscriptionPlans />}
+                      />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
