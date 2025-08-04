@@ -20,6 +20,8 @@ import {
   DollarSign,
   TrendingUp,
   History,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -27,6 +29,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -51,6 +64,7 @@ import { cn } from "@/lib/utils";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { ApiResponse } from "@/types/auth";
+import { toast } from "react-toastify";
 
 // Interface for milk purchase history
 interface MilkPurchaseHistory {
@@ -64,185 +78,67 @@ interface MilkPurchaseHistory {
   paymentDate?: string;
 }
 
-// Interface for customer with milk history
-interface Customer {
-  id: string;
+// Interface for farmer based on API response
+interface Farmer {
+  id: number;
   name: string;
-  contact: string;
-  email: string;
-  address: string;
-  totalPurchases: number;
-  totalAmount: number;
-  pendingAmount: number;
-  status: "active" | "inactive";
-  lastPurchase: string;
-  milkHistory: MilkPurchaseHistory[];
+  phone: string;
+  email?: string;
+  address?: string;
+  dairyId: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-const initialCustomersData: Customer[] = [
-  {
-    id: "CUS-001",
-    name: "Ram Singh",
-    contact: "+91 98765 43220",
-    email: "ram.singh@email.com",
-    address: "Village: Ramgarh, District: Alwar, Rajasthan",
-    totalPurchases: 45,
-    totalAmount: 125000,
-    pendingAmount: 2500,
-    status: "active",
-    lastPurchase: "2024-07-25",
-    milkHistory: [
-      {
-        id: "MH-001",
-        date: "2024-07-25",
-        fatPercentage: 4.2,
-        quantity: 15.5,
-        ratePerLiter: 57,
-        totalAmount: 883.5,
-        paymentStatus: "paid",
-        paymentDate: "2024-07-25",
-      },
-      {
-        id: "MH-002",
-        date: "2024-07-24",
-        fatPercentage: 3.8,
-        quantity: 12.0,
-        ratePerLiter: 53,
-        totalAmount: 636.0,
-        paymentStatus: "paid",
-        paymentDate: "2024-07-24",
-      },
-      {
-        id: "MH-003",
-        date: "2024-07-23",
-        fatPercentage: 4.5,
-        quantity: 18.0,
-        ratePerLiter: 61,
-        totalAmount: 1098.0,
-        paymentStatus: "pending",
-      },
-    ],
-  },
-  {
-    id: "CUS-002",
-    name: "Lakshmi Devi",
-    contact: "+91 98765 43221",
-    email: "lakshmi.devi@email.com",
-    address: "Village: Lakshmipura, District: Jaipur, Rajasthan",
-    totalPurchases: 32,
-    totalAmount: 89000,
-    pendingAmount: 0,
-    status: "active",
-    lastPurchase: "2024-07-24",
-    milkHistory: [
-      {
-        id: "MH-004",
-        date: "2024-07-24",
-        fatPercentage: 3.6,
-        quantity: 10.5,
-        ratePerLiter: 51,
-        totalAmount: 535.5,
-        paymentStatus: "paid",
-        paymentDate: "2024-07-24",
-      },
-      {
-        id: "MH-005",
-        date: "2024-07-23",
-        fatPercentage: 4.0,
-        quantity: 14.0,
-        ratePerLiter: 55,
-        totalAmount: 770.0,
-        paymentStatus: "paid",
-        paymentDate: "2024-07-23",
-      },
-    ],
-  },
-  {
-    id: "CUS-003",
-    name: "Mohan Kumar",
-    contact: "+91 98765 43222",
-    email: "mohan.kumar@email.com",
-    address: "Village: Mohanpur, District: Sikar, Rajasthan",
-    totalPurchases: 28,
-    totalAmount: 75000,
-    pendingAmount: 1800,
-    status: "active",
-    lastPurchase: "2024-07-25",
-    milkHistory: [
-      {
-        id: "MH-006",
-        date: "2024-07-25",
-        fatPercentage: 3.9,
-        quantity: 11.0,
-        ratePerLiter: 54,
-        totalAmount: 594.0,
-        paymentStatus: "pending",
-      },
-      {
-        id: "MH-007",
-        date: "2024-07-24",
-        fatPercentage: 4.1,
-        quantity: 13.5,
-        ratePerLiter: 56,
-        totalAmount: 756.0,
-        paymentStatus: "paid",
-        paymentDate: "2024-07-24",
-      },
-    ],
-  },
-];
-
-const customerSchema = z.object({
-  name: z.string().min(1, "Customer name is required"),
-  contact: z.string().min(1, "Contact is required"),
-  email: z.string().email("Invalid email address"),
-  address: z.string().min(1, "Address is required"),
-  totalPurchases: z.number().min(0, "Total purchases must be non-negative"),
-  totalAmount: z.number().min(0, "Total amount must be non-negative"),
-  pendingAmount: z.number().min(0, "Pending amount must be non-negative"),
-  lastPurchase: z.date({
-    message: "Last purchase date is required",
-  }),
-  status: z.enum(["active", "inactive"]),
+// Farmer form schema based on API requirements
+const farmerSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").max(15, "Phone number too long"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  dairyId: z.number().min(1, "Dairy ID is required"),
 });
 
-type CustomerFormData = z.infer<typeof customerSchema>;
+type FarmerFormData = z.infer<typeof farmerSchema>;
 
 export default function Customers() {
   const { t } = useTranslation();
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomersData);
+  const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [viewHistoryCustomer, setViewHistoryCustomer] =
-    useState<Customer | null>(null);
+  const [editingFarmer, setEditingFarmer] = useState<Farmer | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Example of using apiCall utility to fetch farmers
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm<FarmerFormData>({
+    resolver: zodResolver(farmerSchema),
+    defaultValues: {
+      name: "",
+      phone: "",
+      password: "",
+      dairyId: 1, // Default dairy ID
+    },
+  });
+
+  // Fetch farmers from API
   const fetchFarmers = async () => {
     setLoading(true);
     try {
-      const response = await apiCall(allRoutes.farmers.getFarmers, "get") as ApiResponse<Customer[]>;
+      const response = await apiCall(allRoutes.farmers.getFarmers, "get") as ApiResponse<{ data: Farmer[] }>;
       if (response.success && response.data) {
-        // Transform API data to match our Customer interface
-        const transformedData = response.data.map(
-          (farmer: Customer) => ({
-            id: farmer.id,
-            name: farmer.name,
-            contact: farmer.phone,
-            email: farmer.email || "",  
-            address: farmer.address || "",
-            totalPurchases: farmer.totalPurchases || 0,
-            totalAmount: farmer.totalAmount || 0,
-            pendingAmount: farmer.pendingAmount || 0,
-            status: farmer.status || "active",
-            lastPurchase:
-              farmer.lastPurchase || new Date().toISOString().split("T")[0],
-            milkHistory: farmer.milkHistory || [],
-          })
-        );
-        setCustomers(transformedData);
+        const farmersData = Array.isArray(response.data.data) ? response.data.data : [];
+        setFarmers(farmersData);
+      } else {
+        setFarmers([]);
       }
     } catch (error) {
       console.error("Failed to fetch farmers:", error);
+      toast.error(t("farmers.failedToLoad"));
+      setFarmers([]);
     } finally {
       setLoading(false);
     }
@@ -253,60 +149,71 @@ export default function Customers() {
     fetchFarmers();
   }, []);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<CustomerFormData>({
-    resolver: zodResolver(customerSchema),
-    defaultValues: {
-      name: "",
-      contact: "",
-      email: "",
-      address: "",
-      totalPurchases: 0,
-      totalAmount: 0,
-      pendingAmount: 0,
-      lastPurchase: new Date(),
-      status: "active",
-    },
-  });
+  // Handle add/edit farmer
+  const handleSubmitFarmer = async (data: FarmerFormData) => {
+    setSubmitting(true);
+    try {
+      if (editingFarmer) {
+        // Update existing farmer
+        const response = await apiCall(
+          allRoutes.farmers.updateFarmer(editingFarmer.id),
+          "put",
+          data
+        );
+        if (response.success) {
+          toast.success(t("farmers.farmerUpdated"));
+          setShowAddDialog(false);
+          setEditingFarmer(null);
+          reset();
+          fetchFarmers(); // Refresh the list
+        }
+      } else {
+        // Add new farmer
+        const response = await apiCall(allRoutes.farmers.addFarmer, "post", data);
+        if (response.success) {
+          toast.success(t("farmers.farmerAdded"));
+          setShowAddDialog(false);
+          reset();
+          fetchFarmers(); // Refresh the list
+        }
+      }
+    } catch (error) {
+      console.error("Failed to save farmer:", error);
+      toast.error(editingFarmer ? t("farmers.failedToUpdate") : t("farmers.failedToAdd"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-  const selectedDate = watch("lastPurchase");
+  // Handle edit farmer
+  const handleEditFarmer = (farmer: Farmer) => {
+    setEditingFarmer(farmer);
+    setValue("name", farmer.name);
+    setValue("phone", farmer.phone);
+    setValue("dairyId", farmer.dairyId);
+    setValue("password", ""); // Don't populate password for security
+    setShowAddDialog(true);
+  };
 
-  const handleAddCustomer = (data: CustomerFormData) => {
-    const newCustomer: Customer = {
-      id: `CUS-${(customers.length + 1).toString().padStart(3, "0")}`,
-      ...data,
-      lastPurchase: format(data.lastPurchase, "yyyy-MM-dd"),
-      milkHistory: [],
-    };
-    setCustomers([newCustomer, ...customers]);
+  // Handle delete farmer
+  const handleDeleteFarmer = async (farmerId: number) => {
+    try {
+      const response = await apiCall(allRoutes.farmers.delete(farmerId), "delete");
+      if (response.success) {
+        toast.success(t("farmers.farmerDeleted"));
+        fetchFarmers(); // Refresh the list
+      }
+    } catch (error) {
+      console.error("Failed to delete farmer:", error);
+      toast.error(t("farmers.failedToDelete"));
+    }
+  };
+
+  // Reset form when dialog closes
+  const handleCloseDialog = () => {
     setShowAddDialog(false);
+    setEditingFarmer(null);
     reset();
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
-  };
-
-  const calculateTotalLiters = (history: MilkPurchaseHistory[]) => {
-    return history.reduce((sum, purchase) => sum + purchase.quantity, 0);
-  };
-
-  const calculateAverageFat = (history: MilkPurchaseHistory[]) => {
-    if (history.length === 0) return 0;
-    const totalFat = history.reduce(
-      (sum, purchase) => sum + purchase.fatPercentage,
-      0
-    );
-    return totalFat / history.length;
   };
 
   return (
@@ -317,7 +224,7 @@ export default function Customers() {
             {t("customers.title")}
           </h1>
           <p className="text-muted-foreground">
-            Manage farmers and track milk purchases
+            Manage farmers and track milk collections
           </p>
         </div>
         <Button
@@ -325,32 +232,26 @@ export default function Customers() {
           onClick={() => setShowAddDialog(true)}
         >
           <Plus className="h-4 w-4 mr-2" />
-          {t("customers.addCustomer")}
+          {t("farmers.addFarmer")}
         </Button>
       </div>
 
-      <Dialog
-        open={showAddDialog}
-        onOpenChange={(open) => {
-          setShowAddDialog(open);
-          if (!open) reset();
-        }}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Add/Edit Farmer Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t("customers.addCustomer")}</DialogTitle>
+                      <DialogTitle>
+            {editingFarmer ? t("farmers.editFarmer") : t("farmers.addFarmer")}
+          </DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={handleSubmit(handleAddCustomer)}
-            className="space-y-4"
-          >
+          <form onSubmit={handleSubmit(handleSubmitFarmer)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">{t("customers.customerName")} *</Label>
+                <Label htmlFor="name">{t("farmers.name")} *</Label>
                 <Input
                   id="name"
                   {...register("name")}
-                  placeholder="Enter farmer name"
+                  placeholder={t("farmers.farmerName")}
                 />
                 {errors.name && (
                   <p className="text-sm text-destructive">
@@ -359,141 +260,45 @@ export default function Customers() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contact">{t("customers.phone")} *</Label>
+                <Label htmlFor="phone">{t("farmers.phone")} *</Label>
                 <Input
-                  id="contact"
-                  {...register("contact")}
-                  placeholder="Enter contact number"
+                  id="phone"
+                  {...register("phone")}
+                  placeholder={t("farmers.phone")}
                 />
-                {errors.contact && (
+                {errors.phone && (
                   <p className="text-sm text-destructive">
-                    {errors.contact.message}
+                    {errors.phone.message}
                   </p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">{t("customers.email")} *</Label>
+                <Label htmlFor="password">
+                  {editingFarmer ? t("farmers.newPassword") + " (" + t("farmers.leaveBlankForCurrent") + ")" : t("farmers.password") + " *"}
+                </Label>
                 <Input
-                  id="email"
-                  {...register("email")}
-                  placeholder="Enter email"
+                  id="password"
+                  type="password"
+                  {...register("password")}
+                  placeholder={editingFarmer ? t("farmers.newPassword") : t("farmers.password")}
                 />
-                {errors.email && (
+                {errors.password && (
                   <p className="text-sm text-destructive">
-                    {errors.email.message}
+                    {errors.password.message}
                   </p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">{t("customers.address")} *</Label>
+                <Label htmlFor="dairyId">{t("farmers.dairyId")} *</Label>
                 <Input
-                  id="address"
-                  {...register("address")}
-                  placeholder="Enter address"
-                />
-                {errors.address && (
-                  <p className="text-sm text-destructive">
-                    {errors.address.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="totalPurchases">Total Purchases *</Label>
-                <Input
-                  id="totalPurchases"
+                  id="dairyId"
                   type="number"
-                  min="0"
-                  step="1"
-                  {...register("totalPurchases", { valueAsNumber: true })}
-                  placeholder="Enter total purchases"
+                  {...register("dairyId", { valueAsNumber: true })}
+                  placeholder={t("farmers.dairyId")}
                 />
-                {errors.totalPurchases && (
+                {errors.dairyId && (
                   <p className="text-sm text-destructive">
-                    {errors.totalPurchases.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="totalAmount">Total Amount (₹) *</Label>
-                <Input
-                  id="totalAmount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  {...register("totalAmount", { valueAsNumber: true })}
-                  placeholder="Enter total amount"
-                />
-                {errors.totalAmount && (
-                  <p className="text-sm text-destructive">
-                    {errors.totalAmount.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pendingAmount">Pending Amount (₹) *</Label>
-                <Input
-                  id="pendingAmount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  {...register("pendingAmount", { valueAsNumber: true })}
-                  placeholder="Enter pending amount"
-                />
-                {errors.pendingAmount && (
-                  <p className="text-sm text-destructive">
-                    {errors.pendingAmount.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Last Purchase Date *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate
-                        ? format(selectedDate, "PPP")
-                        : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) =>
-                        date && setValue("lastPurchase", date)
-                      }
-                      disabled={(date) => date > new Date()}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-                {errors.lastPurchase && (
-                  <p className="text-sm text-destructive">
-                    {errors.lastPurchase.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status *</Label>
-                <select
-                  id="status"
-                  {...register("status")}
-                  className="px-3 py-2 border border-border rounded-md bg-background text-foreground w-full"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-                {errors.status && (
-                  <p className="text-sm text-destructive">
-                    {errors.status.message}
+                    {errors.dairyId.message}
                   </p>
                 )}
               </div>
@@ -502,277 +307,114 @@ export default function Customers() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setShowAddDialog(false);
-                  reset();
-                }}
+                onClick={handleCloseDialog}
               >
-                {t("common.cancel")}
+                {t("farmers.cancel")}
               </Button>
-              <Button type="submit" className="bg-primary">
-                {t("customers.addCustomer")}
+              <Button type="submit" disabled={submitting}>
+                {submitting ? t("farmers.saving") : editingFarmer ? t("farmers.update") : t("farmers.addFarmer")}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* View Milk History Dialog */}
-      <Dialog
-        open={!!viewHistoryCustomer}
-        onOpenChange={(open) => {
-          if (!open) setViewHistoryCustomer(null);
-        }}
-      >
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Milk className="h-5 w-5" />
-              Milk Purchase History - {viewHistoryCustomer?.name}
-            </DialogTitle>
-          </DialogHeader>
-
-          {viewHistoryCustomer && (
-            <div className="space-y-6">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <Milk className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Total Purchases
-                        </p>
-                        <p className="text-2xl font-bold">
-                          {viewHistoryCustomer.totalPurchases}
-                        </p>
-                      </div>
+      {/* Farmers List */}
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">{t("farmers.loading")}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {farmers.map((farmer) => (
+            <Card key={farmer.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  {farmer.name}
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditFarmer(farmer)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                                             <AlertDialogContent>
+                         <AlertDialogHeader>
+                           <AlertDialogTitle>{t("farmers.deleteConfirm")}</AlertDialogTitle>
+                           <AlertDialogDescription>
+                             {t("farmers.deleteDescription")}
+                           </AlertDialogDescription>
+                         </AlertDialogHeader>
+                         <AlertDialogFooter>
+                           <AlertDialogCancel>{t("farmers.cancel")}</AlertDialogCancel>
+                           <AlertDialogAction
+                             onClick={() => handleDeleteFarmer(farmer.id)}
+                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                           >
+                             {t("farmers.delete")}
+                           </AlertDialogAction>
+                         </AlertDialogFooter>
+                       </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardTitle>
+                <CardDescription>ID: {farmer.id}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    {farmer.phone}
+                  </div>
+                  {farmer.email && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      {farmer.email}
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <DollarSign className="h-5 w-5 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Total Amount
-                        </p>
-                        <p className="text-2xl font-bold">
-                          {formatCurrency(viewHistoryCustomer.totalAmount)}
-                        </p>
-                      </div>
+                  )}
+                  {farmer.address && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      {farmer.address}
                     </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
 
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <TrendingUp className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Total Liters
-                        </p>
-                        <p className="text-2xl font-bold">
-                          {calculateTotalLiters(
-                            viewHistoryCustomer.milkHistory
-                          ).toFixed(1)}{" "}
-                          L
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="pt-4 border-t space-y-2">
+                                     <div className="flex justify-between">
+                     <span className="text-sm text-muted-foreground">{t("farmers.dairyId")}:</span>
+                     <span className="font-medium">{farmer.dairyId}</span>
+                   </div>
+                   {farmer.createdAt && (
+                     <div className="flex justify-between">
+                       <span className="text-sm text-muted-foreground">{t("farmers.createdAt")}:</span>
+                       <span className="text-sm">{new Date(farmer.createdAt).toLocaleDateString()}</span>
+                     </div>
+                   )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <History className="h-5 w-5 text-orange-600" />
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Avg Fat %
-                        </p>
-                        <p className="text-2xl font-bold">
-                          {calculateAverageFat(
-                            viewHistoryCustomer.milkHistory
-                          ).toFixed(1)}
-                          %
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Milk History Table */}
-              {viewHistoryCustomer.milkHistory.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Fat %</TableHead>
-                        <TableHead>Quantity (L)</TableHead>
-                        <TableHead>Rate/Liter (₹)</TableHead>
-                        <TableHead>Total Amount (₹)</TableHead>
-                        <TableHead>Payment Status</TableHead>
-                        <TableHead>Payment Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {viewHistoryCustomer.milkHistory.map((purchase) => (
-                        <TableRow key={purchase.id}>
-                          <TableCell className="font-medium">
-                            {purchase.date}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">
-                              {purchase.fatPercentage}%
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {purchase.quantity.toFixed(1)} L
-                          </TableCell>
-                          <TableCell>₹{purchase.ratePerLiter}</TableCell>
-                          <TableCell className="font-semibold">
-                            {formatCurrency(purchase.totalAmount)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                purchase.paymentStatus === "paid"
-                                  ? "default"
-                                  : "destructive"
-                              }
-                            >
-                              {purchase.paymentStatus === "paid"
-                                ? t("customers.paid")
-                                : t("customers.pending")}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {purchase.paymentDate || "-"}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Milk className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    {t("customers.noHistory")}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {t("customers.noHistoryDescription")}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-end pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setViewHistoryCustomer(null)}
-            >
-              {t("common.close")}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {customers.map((customer) => (
-          <Card key={customer.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                {customer.name}
-                <Badge
-                  variant={
-                    customer.status === "active" ? "default" : "secondary"
-                  }
-                >
-                  {customer.status}
-                </Badge>
-              </CardTitle>
-              <CardDescription>ID: {customer.id}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  {customer.contact}
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  {customer.email}
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  {customer.address}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    {t("customers.totalPurchases")}:
-                  </span>
-                  <span className="font-medium">{customer.totalPurchases}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    {t("customers.totalAmount")}:
-                  </span>
-                  <span className="font-medium">
-                    {formatCurrency(customer.totalAmount)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    {t("customers.pendingAmount")}:
-                  </span>
-                  <span
-                    className={`font-medium ${
-                      customer.pendingAmount > 0
-                        ? "text-warning"
-                        : "text-success"
-                    }`}
-                  >
-                    {formatCurrency(customer.pendingAmount)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    {t("customers.lastPurchase")}:
-                  </span>
-                  <span className="text-sm">{customer.lastPurchase}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setViewHistoryCustomer(customer)}
-                >
-                  <History className="h-4 w-4 mr-2" />
-                  {t("customers.viewHistory")}
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <CreditCard className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {!loading && farmers.length === 0 && (
+        <div className="text-center py-8">
+          <Milk className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">{t("farmers.noFarmers")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("farmers.noFarmersDescription")}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

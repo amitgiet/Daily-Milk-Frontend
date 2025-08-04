@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiCall } from '../lib/apiCall';
 import { allRoutes } from '../lib/apiRoutes';
-import { User, LoginResponse, RegisterResponse, RefreshTokenResponse, ApiResponse } from '../types/auth';
+import { User, LoginResponse, RegisterResponse, RefreshTokenResponse, ApiResponse, DairySubscription } from '../types/auth';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hasSubscription: boolean;
+  dairySubscription: DairySubscription | null;
   login: (phone: string, password: string) => Promise<boolean>;
   register: (name: string, phone: string, password: string, referralCode?: string) => Promise<boolean>;
   logout: () => void;
@@ -35,6 +37,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [dairySubscription, setDairySubscription] = useState<DairySubscription | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -77,7 +81,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Login successful, setting token and user');
         localStorage.setItem('authToken', response.data.accessToken);
         localStorage.setItem('isAuthenticated', 'true');
-        setUser(response.data.user || { id: 0, name: '', phone, dairyId: 0 });
+        
+        // Set user with roleId
+        const userData = response.data.user || { id: 0, name: '', phone, dairyId: 0, roleId: 1 };
+        setUser(userData);
+        
+        // Set subscription information
+        setHasSubscription(response.data.subscription || false);
+        setDairySubscription(response.data.DairySubscription || null);
+        
         setIsAuthenticated(true);
         console.log('Login completed, returning true');
         return true;
@@ -101,7 +113,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.data?.accessToken) {
         localStorage.setItem('authToken', response.data.accessToken);
         localStorage.setItem('isAuthenticated', 'true');
-        setUser(response.data.user || { id: 0, name, phone, dairyId: 0 });
+        
+        // Set user with roleId
+        const userData = response.data.user || { id: 0, name, phone, dairyId: 0, roleId: 1 };
+        setUser(userData);
+        
+        // Set subscription information (new users don't have subscription)
+        setHasSubscription(false);
+        setDairySubscription(null);
+        
         setIsAuthenticated(true);
         return true;
       }
@@ -175,6 +195,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isAuthenticated,
     isLoading,
+    hasSubscription,
+    dairySubscription,
     login,
     register,
     logout,
@@ -182,7 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     forgotPassword,
     verifyOTP,
     changePassword,
-    refreshToken
+    refreshToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

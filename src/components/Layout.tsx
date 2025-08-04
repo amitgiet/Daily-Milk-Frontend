@@ -17,6 +17,7 @@ import {
   ChevronDown,
   CreditCard,
   Calculator,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,15 +31,20 @@ import {
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
+import { canAccessRoute, getRoleName } from "@/lib/permissions";
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, logout, hasSubscription, dairySubscription } = useAuth();
 
-  const navigation = [
+  // Get user role
+  const userRole = user?.roleId || 1;
+
+  // Define all navigation items
+  const allNavigation = [
     { name: t("navigation.dashboard"), href: "/", icon: Home },
     // { name: t('navigation.inventory'), href: "/inventory", icon: Package },
     // { name: t('navigation.dairyRates'), href: "/dairy-rates", icon: Calculator },
@@ -62,6 +68,9 @@ export default function Layout() {
     },
     { name: t("navigation.settings"), href: "/settings", icon: Settings },
   ];
+
+  // Filter navigation based on user role and subscription
+  const navigation = allNavigation.filter(item => canAccessRoute(userRole, item.href, hasSubscription));
 
   const handleLogout = async () => {
     await logout();
@@ -208,12 +217,28 @@ export default function Layout() {
                       Signed in as
                     </p>
                     <p className="text-sm text-muted-foreground">{userEmail}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Role: {getRoleName(userRole)}
+                    </p>
+                    {hasSubscription && dairySubscription && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Subscription: Active
+                      </p>
+                    )}
+                    {!hasSubscription && (
+                      <p className="text-xs text-muted-foreground mt-1 text-destructive">
+                        <AlertTriangle className="mr-1 h-3 w-3" />
+                        No active subscription
+                      </p>
+                    )}
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/settings")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    {t("navigation.settings")}
-                  </DropdownMenuItem>
+                  {canAccessRoute(userRole, '/settings') && (
+                    <DropdownMenuItem onClick={() => navigate("/settings")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      {t("navigation.settings")}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}

@@ -61,9 +61,11 @@ import {
   SubscriptionPlanFormData,
   PendingRequest,
 } from '@/types/subscription';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function AdminSubscriptionPlans() {
   const { t } = useTranslation();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -265,114 +267,116 @@ export default function AdminSubscriptionPlans() {
             {t('subscriptionPlans.subtitle')}
           </p>
         </div>
-        <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('subscriptionPlans.addPlan')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingPlan ? t('subscriptionPlans.editPlan') : t('subscriptionPlans.createPlan')}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">{t('subscriptionPlans.planName')}</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    placeholder={t('subscriptionPlans.planNamePlaceholder')}
-                    required
-                  />
+        {canCreate() && (
+          <Dialog open={showForm} onOpenChange={setShowForm}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setShowForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t('subscriptionPlans.addPlan')}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingPlan ? t('subscriptionPlans.editPlan') : t('subscriptionPlans.createPlan')}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">{t('subscriptionPlans.planName')}</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder={t('subscriptionPlans.planNamePlaceholder')}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="durationDays">{t('subscriptionPlans.durationDays')}</Label>
+                    <Input
+                      id="durationDays"
+                      type="number"
+                      value={formData.durationDays}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          durationDays: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      placeholder={t('subscriptionPlans.durationDaysPlaceholder')}
+                      required
+                    />
+                  </div>
                 </div>
                 <div>
-                  <Label htmlFor="durationDays">{t('subscriptionPlans.durationDays')}</Label>
+                  <Label htmlFor="price">{t('subscriptionPlans.price')}</Label>
                   <Input
-                    id="durationDays"
+                    id="price"
                     type="number"
-                    value={formData.durationDays}
+                    value={formData.price}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        durationDays: parseInt(e.target.value) || 0,
+                        price: parseFloat(e.target.value) || 0,
                       })
                     }
-                    placeholder={t('subscriptionPlans.durationDaysPlaceholder')}
+                    placeholder={t('subscriptionPlans.pricePlaceholder')}
                     required
                   />
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="price">{t('subscriptionPlans.price')}</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      price: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  placeholder={t('subscriptionPlans.pricePlaceholder')}
-                  required
-                />
-              </div>
-              <div>
-                <Label>{t('subscriptionPlans.features')}</Label>
-                <div className="flex gap-2 mb-2">
-                  <Input
-                    value={newFeature}
-                    onChange={(e) => setNewFeature(e.target.value)}
-                    placeholder={t('subscriptionPlans.addFeature')}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-                  />
-                  <Button type="button" onClick={addFeature} variant="outline">
-                    {t('subscriptionPlans.add')}
+                <div>
+                  <Label>{t('subscriptionPlans.features')}</Label>
+                  <div className="flex gap-2 mb-2">
+                    <Input
+                      value={newFeature}
+                      onChange={(e) => setNewFeature(e.target.value)}
+                      placeholder={t('subscriptionPlans.addFeature')}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
+                    />
+                    <Button type="button" onClick={addFeature} variant="outline">
+                      {t('subscriptionPlans.add')}
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {formData.features.map((feature, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <span className="flex-1 text-sm">{feature}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFeature(index)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditingPlan(null);
+                      resetForm();
+                    }}
+                  >
+                    {t('subscriptionPlans.cancel')}
+                  </Button>
+                  <Button type="submit">
+                    {editingPlan ? t('subscriptionPlans.updatePlan') : t('subscriptionPlans.createPlanButton')}
                   </Button>
                 </div>
-                <div className="space-y-2">
-                  {formData.features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <span className="flex-1 text-sm">{feature}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFeature(index)}
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingPlan(null);
-                    resetForm();
-                  }}
-                >
-                  {t('subscriptionPlans.cancel')}
-                </Button>
-                <Button type="submit">
-                  {editingPlan ? t('subscriptionPlans.updatePlan') : t('subscriptionPlans.createPlanButton')}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Tabs defaultValue="plans" className="space-y-4">
@@ -440,46 +444,52 @@ export default function AdminSubscriptionPlans() {
                           )}
                           <div className="flex items-center justify-between pt-2">
                             <div className="flex items-center gap-2">
-                              <Switch
-                                checked={plan.isActive}
-                                onCheckedChange={() => handleToggleStatus(plan.id, plan.isActive)}
-                              />
+                              {canEdit() && (
+                                <Switch
+                                  checked={plan.isActive}
+                                  onCheckedChange={() => handleToggleStatus(plan.id, plan.isActive)}
+                                />
+                              )}
                               <span className="text-xs text-muted-foreground">
                                 {plan.isActive ? t('subscriptionPlans.active') : t('subscriptionPlans.inactive')}
                               </span>
                             </div>
                             <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(plan)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Plan</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete "{plan.name}"? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDelete(plan.id)}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              {canEdit() && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(plan)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canDelete() && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Plan</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete "{plan.name}"? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDelete(plan.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </div>
                           </div>
                         </div>
