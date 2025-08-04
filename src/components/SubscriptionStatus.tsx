@@ -8,10 +8,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SubscriptionStatus() {
   const { hasSubscription, dairySubscription } = useAuth();
-  const { isDairy, subscriptionStatus } = usePermissions();
+  const { isDairyUser } = usePermissions();
 
   // Only show for dairy users
-  if (!isDairy) return null;
+  if (!isDairyUser) return null;
+
+  // Calculate subscription status
+  const getSubscriptionStatus = () => {
+    if (!dairySubscription) return 'none';
+    
+    if (dairySubscription.status === 'active') {
+      // Check if subscription is expired
+      const endDate = new Date(dairySubscription.endDate);
+      const today = new Date();
+      if (endDate < today) return 'expired';
+      return 'active';
+    }
+    
+    return dairySubscription.status || 'inactive';
+  };
+
+  const subscriptionStatus = getSubscriptionStatus();
 
   const getStatusIcon = () => {
     switch (subscriptionStatus) {

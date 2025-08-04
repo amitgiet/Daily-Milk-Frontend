@@ -65,7 +65,12 @@ import { usePermissions } from '@/hooks/usePermissions';
 
 export default function AdminSubscriptionPlans() {
   const { t } = useTranslation();
-  const { canAccessFeature } = usePermissions();
+  const { canAccessFeature, isAdminUser, userRole } = usePermissions();
+  
+  // Debug logging
+  console.log('AdminSubscriptionPlans - userRole:', userRole);
+  console.log('AdminSubscriptionPlans - isAdminUser:', isAdminUser);
+  console.log('AdminSubscriptionPlans - canAccessFeature(manageSubscriptionPlans):', canAccessFeature('manageSubscriptionPlans'));
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -267,6 +272,14 @@ export default function AdminSubscriptionPlans() {
             {t('subscriptionPlans.subtitle')}
           </p>
         </div>
+        {/* Debug button to test permissions */}
+        <Button 
+          variant="outline" 
+          onClick={() => alert(`UserRole: ${userRole}, isAdmin: ${isAdminUser}, canManage: ${canAccessFeature('manageSubscriptionPlans')}`)}
+          className="mr-2"
+        >
+          Debug Permissions
+        </Button>
         {canAccessFeature('manageSubscriptionPlans') && (
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
@@ -464,7 +477,7 @@ export default function AdminSubscriptionPlans() {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               )}
-                                {canAccessFeature('manageSubscriptionPlans') && (
+                              {canAccessFeature('manageSubscriptionPlans') && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button variant="ghost" size="sm">

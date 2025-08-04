@@ -1,13 +1,15 @@
 import { useAuth } from '../contexts/AuthContext';
-import { isFarmer, isAdmin, isDairy } from '../lib/permissions';
+import { UserRole } from '../types/auth';
 
 export const usePermissions = () => {
   const { user } = useAuth();
   const userRole = user?.roleId || 1;
 
-  const isFarmerUser = isFarmer(userRole);
-  const isAdminUser = isAdmin(userRole);
-  const isDairyUser = isDairy(userRole);
+  // Role checking functions
+  const isFarmerUser = userRole === UserRole.FARMER;
+  const isAdminUser = userRole === UserRole.ADMIN;
+  const isDairyUser = userRole === UserRole.DAIRY;
+  
   const canManageMilk = isAdminUser || isDairyUser;
   const canViewOwnData = isFarmerUser;
   const canViewAllData = isAdminUser || isDairyUser;
@@ -36,6 +38,8 @@ export const usePermissions = () => {
       case 'viewReports':
         return isAdminUser || isDairyUser;
       case 'manageSettings':
+        return isAdminUser;
+      case 'manageSubscriptionPlans':
         return isAdminUser;
       default:
         return false;
