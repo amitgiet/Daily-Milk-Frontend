@@ -45,5 +45,16 @@ export const allRoutes = {
   dairy: {
     rates: '/admin/dairy/rates',
     updateRates: '/admin/dairy/rates'
+  },
+  subscriptions: {
+    list: '/admin/subscriptions',
+    add: '/admin/subscriptions',
+    update: (id: string | number) => `/admin/subscriptions/${id}`,
+    get: (id: string | number) => `/admin/subscriptions/${id}`,
+    delete: (id: string | number) => `/admin/subscriptions/${id}`,
+    toggleStatus: (id: string | number) => `/admin/subscriptions/${id}/status`,
+    pendingRequests: '/admin/subscriptions/pending-requests',
+    updateRequestStatus: (id: string | number) => `/admin/subscriptions/update-status/${id}`,
+    request: '/admin/subscriptions/request'
   }
 }; 

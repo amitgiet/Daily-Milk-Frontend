@@ -23,7 +23,7 @@ export const apiCall = async (url: string, method: 'get' | 'post' | 'put' | 'del
           });
 
     console.log('API Response:', response);
-    return { success: true, data: response };
+    return { success: true, data: response.data };
   } catch (error: unknown) {
     const axiosError = error as { 
       response?: { 

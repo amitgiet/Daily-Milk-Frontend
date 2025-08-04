@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     proxy: {
       '/api': {
-        target: process.env.VITE_DEV_PROXY_URL || 'https://dairy-management-7yqn.onrender.com',
+        target: 'https://dairy-management-7yqn.onrender.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, ''),

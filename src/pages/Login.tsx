@@ -98,15 +98,22 @@ const Login = () => {
     setLoginError("");
 
     try {
+      console.log('Login component: attempting login...');
       const success = await login(data.phone, data.password);
+      console.log('Login component: login result:', success);
       
       if (success) {
-        // Navigate to dashboard on successful login
-        navigate("/dashboard");
+        console.log('Login component: navigating to dashboard...');
+        // Add a small delay to ensure state is updated
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 100);
       } else {
+        console.log('Login component: login failed, showing error');
         setLoginError(t('login.invalidCredentials'));
       }
     } catch (error: unknown) {
+      console.error('Login component: error during login:', error);
       const errorMessage = error instanceof Error ? error.message : t('login.loginError');
       setLoginError(errorMessage);
     } finally {

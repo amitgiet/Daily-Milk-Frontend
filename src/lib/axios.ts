@@ -2,8 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  // For now, use proxy in both development and production to avoid CORS issues
-  // Once backend CORS is properly configured, we can switch to direct API calls
+  // Use proxy in both development and production to avoid CORS issues
   baseURL: '/api', // Use proxy in both dev and prod
   timeout: 10000,
   headers: {
@@ -36,7 +35,7 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    // Return response data directly
+    // Return the full response object
     return response.data;
   },
   (error) => {

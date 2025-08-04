@@ -436,8 +436,92 @@
 										},
 										{
 											"key": "shift",
+											"value": null,
+											"description": "morning | evening"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Milk Dispatch",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base-url}}/admin/milk-dispatches?from&to&shift&bmcId",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"milk-dispatches"
+									],
+									"query": [
+										{
+											"key": "from",
+											"value": null
+										},
+										{
+											"key": "to",
+											"value": null
+										},
+										{
+											"key": "shift",
+											"value": null
+										},
+										{
+											"key": "bmcId",
 											"value": null
 										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Milk Dispatch",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"bmcId\":null,\n  \"bmcName\" : \"Shambhu\",\n  \"date\": \"2025-07-30\",\n  \"shift\": \"morning\",\n  \"quantity\": 120,\n  \"fat\": 6.5,\n  \"snf\": 8.4,\n  \"ratePerLitre\": 34,\n  \"note\": \"Morning dispatch\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base-url}}/admin/milk-dispatches",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"milk-dispatches"
 									]
 								}
 							},
@@ -537,7 +621,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\" : \"Basic\",\n    \"durationDays\" : 30,\n    \"price\" : 100\n}",
+									"raw": "{\n    \"name\" : \"Basic\",\n    \"durationDays\" : 30,\n    \"price\" : 100,\n    \"features\":[]\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -648,6 +732,115 @@
 										"subscriptions",
 										"1",
 										"status"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Subscription Plan Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"planId\": 2\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base-url}}/admin/subscriptions/request",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"subscriptions",
+										"request"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Subscription Active | Cancelled",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"active\"  // or \"cancelled\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base-url}}/admin/subscriptions/update-status/1",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"subscriptions",
+										"update-status",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Pending Requests",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base-url}}/admin/subscriptions/pending-requests",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"subscriptions",
+										"pending-requests"
 									]
 								}
 							},

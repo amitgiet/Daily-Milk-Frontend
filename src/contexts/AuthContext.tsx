@@ -51,14 +51,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (phone: string, password: string): Promise<boolean> => {
     try {
+      console.log('Login attempt for phone:', phone);
       const response = await apiCall(allRoutes.auth.login, 'post', { phone, password }) as ApiResponse<LoginResponse>;
+      console.log('Login response:', response);
+      
       if (response.success && response.data?.accessToken) {
+        console.log('Login successful, setting token and user');
         localStorage.setItem('authToken', response.data.accessToken);
         localStorage.setItem('isAuthenticated', 'true');
         setUser(response.data.user || { id: 0, name: '', phone, dairyId: 0 });
         setIsAuthenticated(true);
+        console.log('Login completed, returning true');
         return true;
       }
+      console.log('Login failed - no access token');
       return false;
     } catch (error) {
       console.error('Login error:', error);

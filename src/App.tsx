@@ -17,6 +17,7 @@ import Orders from "./pages/Orders";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
+import AdminSubscriptionPlans from "./pages/AdminSubscriptionPlans";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,10 +50,14 @@ const App = () => (
                       <Route path="/orders" element={<Orders />} />
                       <Route path="/reports" element={<Reports />} />
                       <Route path="/settings" element={<Settings />} />
-                      <Route
-                        path="/subscription-plans"
-                        element={<SubscriptionPlans />}
-                      />
+                              <Route
+          path="/subscription-plans"
+          element={<SubscriptionPlans />}
+        />
+        <Route
+          path="/admin-subscription-plans"
+          element={<AdminSubscriptionPlans />}
+        />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>

@@ -59,6 +59,11 @@ export default function Layout({ children }: LayoutProps) {
       href: "/subscription-plans",
       icon: CreditCard,
     },
+    {
+      name: "Admin Plans",
+      href: "/admin-subscription-plans",
+      icon: CreditCard,
+    },
     { name: t("navigation.settings"), href: "/settings", icon: Settings },
   ];
 

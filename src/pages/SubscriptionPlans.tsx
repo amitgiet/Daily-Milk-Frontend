@@ -1,438 +1,297 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
-  Check,
+  CheckCircle,
   Star,
+  Users,
   Zap,
   Shield,
-  Users,
+  Headphones,
   BarChart3,
-  Calendar,
+  Code,
+  Palette,
+  UserCheck,
+  Mail,
+  Phone,
+  Clock,
   CreditCard,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-
-interface Plan {
-  id: string;
-  name: string;
-  duration: string;
-  price: number;
-  originalPrice?: number;
-  savings?: string;
-  popular?: boolean;
-  features: string[];
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-}
-
-const plans: Plan[] = [
-  {
-    id: "monthly",
-    name: "Basic Plan",
-    duration: "1 Month",
-    price: 999,
-    description: "Perfect for small dairy farms getting started",
-    icon: Calendar,
-    color: "from-blue-500 to-blue-600",
-    features: [
-      "Up to 50 farmers management",
-      "Basic milk collection tracking",
-      "Daily reports",
-      "Email support",
-      "Mobile app access",
-      "Basic analytics",
-      "Export data (PDF)",
-      "1 user account",
-    ],
-  },
-  {
-    id: "quarterly",
-    name: "Professional Plan",
-    duration: "3 Months",
-    price: 2499,
-    originalPrice: 2997,
-    savings: "₹498",
-    popular: true,
-    description: "Ideal for growing dairy businesses",
-    icon: Users,
-    color: "from-purple-500 to-purple-600",
-    features: [
-      "Up to 200 farmers management",
-      "Advanced milk collection tracking",
-      "Real-time analytics",
-      "Priority email support",
-      "Mobile app access",
-      "Advanced reporting",
-      "Export data (PDF & Excel)",
-      "Up to 3 user accounts",
-      "SMS notifications",
-      "Inventory management",
-      "Payment tracking",
-      "Custom reports",
-    ],
-  },
-  {
-    id: "biannual",
-    name: "Business Plan",
-    duration: "6 Months",
-    price: 4499,
-    originalPrice: 5994,
-    savings: "₹1495",
-    description: "For established dairy operations",
-    icon: BarChart3,
-    color: "from-green-500 to-green-600",
-    features: [
-      "Unlimited farmers management",
-      "Complete milk collection system",
-      "Advanced analytics & insights",
-      "Phone & email support",
-      "Mobile app access",
-      "Custom dashboard",
-      "Export data (PDF, Excel, CSV)",
-      "Up to 5 user accounts",
-      "SMS & WhatsApp notifications",
-      "Full inventory management",
-      "Payment & billing system",
-      "Custom reports & analytics",
-      "API access",
-      "Data backup & recovery",
-    ],
-  },
-  {
-    id: "annual",
-    name: "Enterprise Plan",
-    duration: "1 Year",
-    price: 7999,
-    originalPrice: 11988,
-    savings: "₹3989",
-    description: "Complete solution for large dairy enterprises",
-    icon: Shield,
-    color: "from-orange-500 to-orange-600",
-    features: [
-      "Unlimited everything",
-      "Complete dairy management suite",
-      "AI-powered analytics",
-      "24/7 priority support",
-      "Mobile app access",
-      "Custom branding",
-      "All export formats",
-      "Unlimited user accounts",
-      "Multi-channel notifications",
-      "Advanced inventory & supply chain",
-      "Complete financial management",
-      "Advanced reporting & BI",
-      "Full API access",
-      "Data backup & recovery",
-      "Custom integrations",
-      "Dedicated account manager",
-      "Training & onboarding",
-      "White-label solution",
-    ],
-  },
-];
+  ArrowRight,
+  HelpCircle,
+  MessageSquare,
+} from 'lucide-react';
+import { apiCall } from '@/lib/apiCall';
+import { allRoutes } from '@/lib/apiRoutes';
+import { toast } from 'react-toastify';
+import { SubscriptionPlan } from '@/types/subscription';
 
 export default function SubscriptionPlans() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleSelectPlan = async (planId: string) => {
-    setIsLoading(true);
-    setSelectedPlan(planId);
+  useEffect(() => {
+    loadPlans();
+  }, []);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Navigate to payment page or handle subscription
-    navigate(`/payment?plan=${planId}`);
+  const loadPlans = async () => {
+    setLoading(true);
+    try {
+      const response = await apiCall(allRoutes.subscriptions.list, 'get');
+      if (response.success && response.data) {
+        const plansData = Array.isArray(response.data) ? response.data : [];
+        // Only show active plans to users
+        const activePlans = plansData.filter(plan => plan.isActive);
+        setPlans(activePlans);
+      } else {
+        setPlans([]);
+      }
+    } catch (error) {
+      console.error('Error loading subscription plans:', error);
+      toast.error('Failed to load subscription plans');
+      setPlans([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleContactSales = () => {
-    // Navigate to contact page or open contact form
-    navigate("/contact");
+  const handleSelectPlan = async (plan: SubscriptionPlan) => {
+    setIsProcessing(true);
+    try {
+      const response = await apiCall(
+        allRoutes.subscriptions.request,
+        'post',
+        { planId: plan.id }
+      );
+      
+      if (response.success) {
+        toast.success('Subscription request submitted successfully!');
+        setSelectedPlan(plan);
+      } else {
+        toast.error('Failed to submit subscription request');
+      }
+    } catch (error) {
+      console.error('Error submitting subscription request:', error);
+      toast.error('Failed to submit subscription request');
+    } finally {
+      setIsProcessing(false);
+    }
   };
+
+  const getFeatureIcon = (feature: string) => {
+    const featureLower = feature.toLowerCase();
+    if (featureLower.includes('farmers') || featureLower.includes('users')) return <Users className="h-4 w-4" />;
+    if (featureLower.includes('analytics') || featureLower.includes('reports')) return <BarChart3 className="h-4 w-4" />;
+    if (featureLower.includes('api')) return <Code className="h-4 w-4" />;
+    if (featureLower.includes('branding') || featureLower.includes('custom')) return <Palette className="h-4 w-4" />;
+    if (featureLower.includes('support') || featureLower.includes('help')) return <Headphones className="h-4 w-4" />;
+    if (featureLower.includes('manager') || featureLower.includes('dedicated')) return <UserCheck className="h-4 w-4" />;
+    if (featureLower.includes('email')) return <Mail className="h-4 w-4" />;
+    if (featureLower.includes('phone')) return <Phone className="h-4 w-4" />;
+    if (featureLower.includes('priority') || featureLower.includes('24/7')) return <Clock className="h-4 w-4" />;
+    return <CheckCircle className="h-4 w-4" />;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Header */}
+      <div className="container mx-auto px-6 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {t("subscription.title")}
+          <h1 className="text-4xl font-bold text-foreground mb-4">
+            {t('subscription.title')}
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            {t("subscription.subtitle")}
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            {t('subscription.subtitle')}
           </p>
         </div>
 
         {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {plans.map((plan) => (
-            <Card
-              key={plan.id}
-              className={cn(
-                "relative transition-all duration-300 hover:shadow-xl hover:-translate-y-2",
-                plan.popular && "ring-2 ring-purple-500 shadow-lg"
-              )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-16">
+          {plans.map((plan, index) => (
+            <Card 
+              key={plan.id} 
+              className={`relative transition-all duration-300 hover:shadow-lg flex flex-col ${
+                selectedPlan?.id === plan.id ? 'ring-2 ring-primary' : ''
+              }`}
             >
-              {plan.popular && (
-                <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-500 text-white">
-                  {t("subscription.mostPopular")}
-                </Badge>
+              {/* Popular Badge */}
+              {index === 1 && (
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <Badge className="bg-primary text-primary-foreground px-3 py-1">
+                    <Star className="h-3 w-3 mr-1" />
+                    {t('subscription.mostPopular')}
+                  </Badge>
+                </div>
               )}
 
               <CardHeader className="text-center pb-4">
-                <div
-                  className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4",
-                    `bg-gradient-to-r ${plan.color}`
-                  )}
-                >
-                  <plan.icon className="w-6 h-6 text-white" />
+                <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-3xl font-bold text-primary">
+                    ₹{typeof plan.price === 'string' ? plan.price : plan.price.toString()}
+                  </span>
+                  <span className="text-muted-foreground">/ {plan.durationDays} days</span>
                 </div>
-                <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
                 <CardDescription className="text-sm">
-                  {plan.description}
+                  {plan.durationDays === 30 && t('subscription.monthly')}
+                  {plan.durationDays === 90 && t('subscription.quarterly')}
+                  {plan.durationDays === 180 && t('subscription.biannual')}
+                  {plan.durationDays === 365 && t('subscription.annual')}
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-6">
-                {/* Pricing */}
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <span className="text-3xl font-bold">₹{plan.price}</span>
-                    <span className="text-gray-500">/ {plan.duration}</span>
-                  </div>
-
-                  {plan.originalPrice && (
-                    <div className="flex items-center justify-center gap-2 text-sm">
-                      <span className="text-gray-500 line-through">
-                        ₹{plan.originalPrice}
-                      </span>
-                      <Badge variant="secondary" className="text-xs">
-                        {t("subscription.save")} {plan.savings}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
+              <CardContent className="space-y-4 flex-1 flex flex-col">
                 {/* Features */}
-                <div className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-700">{feature}</span>
-                    </div>
-                  ))}
+                {plan.features && plan.features.length > 0 && (
+                  <div className="space-y-3">
+                    {plan.features.map((feature, featureIndex) => (
+                      <div key={featureIndex} className="flex items-center gap-3">
+                        <div className="text-primary">
+                          {getFeatureIcon(feature)}
+                        </div>
+                        <span className="text-sm text-muted-foreground">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Default Features */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-muted-foreground">Core dairy management features</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-muted-foreground">Mobile responsive design</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-muted-foreground">Data backup & security</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-muted-foreground">Email support</span>
+                  </div>
                 </div>
 
-                {/* Action Button */}
-                <Button
-                  className={cn(
-                    "w-full",
-                    plan.popular
-                      ? "bg-purple-600 hover:bg-purple-700"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  )}
-                  onClick={() => handleSelectPlan(plan.id)}
-                  disabled={isLoading && selectedPlan === plan.id}
-                >
-                  {isLoading && selectedPlan === plan.id ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      {t("subscription.processing")}
-                    </div>
-                  ) : (
-                    `${t("subscription.choosePlan")} ${plan.name}`
-                  )}
-                </Button>
+                {/* Action Button - Bottom Aligned */}
+                <div className="mt-auto pt-6">
+                  <Button 
+                    className="w-full"
+                    onClick={() => handleSelectPlan(plan)}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        {t('subscription.processing')}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {t('subscription.choosePlan')}
+                        <ArrowRight className="h-4 w-4" />
+                      </div>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Comparison Table */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-12">
-          <h2 className="text-2xl font-bold text-center mb-8">
-            {t("subscription.planComparison")}
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-semibold">
-                    {t("subscription.features")}
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold">
-                    {t("subscription.basicPlan")}
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold">
-                    {t("subscription.professionalPlan")}
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold">
-                    {t("subscription.businessPlan")}
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold">
-                    {t("subscription.enterprisePlan")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">
-                    {t("subscription.farmersLimit")}
-                  </td>
-                  <td className="text-center py-3 px-4">50</td>
-                  <td className="text-center py-3 px-4">200</td>
-                  <td className="text-center py-3 px-4">Unlimited</td>
-                  <td className="text-center py-3 px-4">Unlimited</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">
-                    {t("subscription.userAccounts")}
-                  </td>
-                  <td className="text-center py-3 px-4">1</td>
-                  <td className="text-center py-3 px-4">3</td>
-                  <td className="text-center py-3 px-4">5</td>
-                  <td className="text-center py-3 px-4">Unlimited</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">
-                    {t("subscription.support")}
-                  </td>
-                  <td className="text-center py-3 px-4">Email</td>
-                  <td className="text-center py-3 px-4">Priority Email</td>
-                  <td className="text-center py-3 px-4">Phone & Email</td>
-                  <td className="text-center py-3 px-4">24/7 Priority</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">
-                    {t("subscription.analytics")}
-                  </td>
-                  <td className="text-center py-3 px-4">
-                    {t("subscription.basic")}
-                  </td>
-                  <td className="text-center py-3 px-4">
-                    {t("subscription.advanced")}
-                  </td>
-                  <td className="text-center py-3 px-4">
-                    {t("subscription.custom")}
-                  </td>
-                  <td className="text-center py-3 px-4">AI-Powered</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">
-                    {t("subscription.apiAccess")}
-                  </td>
-                  <td className="text-center py-3 px-4">❌</td>
-                  <td className="text-center py-3 px-4">❌</td>
-                  <td className="text-center py-3 px-4">✅</td>
-                  <td className="text-center py-3 px-4">✅</td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">
-                    {t("subscription.customBranding")}
-                  </td>
-                  <td className="text-center py-3 px-4">❌</td>
-                  <td className="text-center py-3 px-4">❌</td>
-                  <td className="text-center py-3 px-4">❌</td>
-                  <td className="text-center py-3 px-4">✅</td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-4 font-medium">
-                    {t("subscription.dedicatedManager")}
-                  </td>
-                  <td className="text-center py-3 px-4">❌</td>
-                  <td className="text-center py-3 px-4">❌</td>
-                  <td className="text-center py-3 px-4">❌</td>
-                  <td className="text-center py-3 px-4">✅</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         {/* FAQ Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-12">
-          <h2 className="text-2xl font-bold text-center mb-8">
-            {t("subscription.faq")}
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-8">
+            {t('subscription.faq')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-semibold mb-2">
-                {t("subscription.upgradeQuestion")}
-              </h3>
-              <p className="text-gray-600 text-sm">
-                {t("subscription.upgradeAnswer")}
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">
-                {t("subscription.trialQuestion")}
-              </h3>
-              <p className="text-gray-600 text-sm">
-                {t("subscription.trialAnswer")}
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">
-                {t("subscription.paymentQuestion")}
-              </h3>
-              <p className="text-gray-600 text-sm">
-                {t("subscription.paymentAnswer")}
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">
-                {t("subscription.cancelQuestion")}
-              </h3>
-              <p className="text-gray-600 text-sm">
-                {t("subscription.cancelAnswer")}
-              </p>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5" />
+                  {t('subscription.upgradeQuestion')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{t('subscription.upgradeAnswer')}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5" />
+                  {t('subscription.trialQuestion')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{t('subscription.trialAnswer')}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5" />
+                  {t('subscription.paymentQuestion')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{t('subscription.paymentAnswer')}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5" />
+                  {t('subscription.cancelQuestion')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{t('subscription.cancelAnswer')}</p>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="text-center">
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-8 text-white">
-              <h2 className="text-3xl font-bold mb-4">
-              {t("subscription.customSolution")}
-            </h2>
-            <p className="text-xl mb-6 opacity-90">
-              {t("subscription.customSolutionSubtitle")}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={handleContactSales}
-                className="bg-white text-blue-600 hover:bg-gray-100"
-              >
-                {t("subscription.contactSales")}
+        {/* Custom Solution CTA */}
+        <div className="text-center mt-16">
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-2xl">{t('subscription.customSolution')}</CardTitle>
+              <CardDescription>{t('subscription.customSolutionSubtitle')}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button variant="outline" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                {t('subscription.contactSales')}
               </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => navigate("/demo")}
-                className="border-white text-white hover:bg-white hover:text-blue-600"
-              >
-                {t("subscription.requestDemo")}
+              <Button className="flex items-center gap-2">
+                <ArrowRight className="h-4 w-4" />
+                {t('subscription.requestDemo')}
               </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
