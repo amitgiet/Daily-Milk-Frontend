@@ -16,9 +16,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
   },
   [UserRole.FARMER]: {
     canView: true,
-    canCreate: false,
-    canEdit: false,
-    canDelete: false,
+    canCreate: false, // Farmers cannot create new items
+    canEdit: false,   // Farmers cannot edit existing items
+    canDelete: false, // Farmers cannot delete items
   },
 };
 
@@ -36,7 +36,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
     roles: [UserRole.ADMIN, UserRole.DAIRY, UserRole.FARMER],
   },
 
-  // Milk Collection - All roles can view, only admin can create/edit
+  // Milk Collection - Farmers can only view their own data, admin/dairy can manage all
   {
     path: '/milk-collection',
     permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -44,27 +44,27 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
     requiresSubscription: true, // Dairy needs subscription to access
   },
 
-  // Customers - All roles can view, only admin can create/edit
+  // Customers - Only admin and dairy can access, farmers cannot
   {
     path: '/customers',
     permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    roles: [UserRole.ADMIN, UserRole.DAIRY, UserRole.FARMER],
+    roles: [UserRole.ADMIN, UserRole.DAIRY],
     requiresSubscription: true, // Dairy needs subscription to access
   },
 
-  // Orders - All roles can view, only admin can create/edit
+  // Orders - Only admin and dairy can access, farmers cannot
   {
     path: '/orders',
     permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    roles: [UserRole.ADMIN, UserRole.DAIRY, UserRole.FARMER],
+    roles: [UserRole.ADMIN, UserRole.DAIRY],
     requiresSubscription: true, // Dairy needs subscription to access
   },
 
-  // Reports - All roles can view
+  // Reports - Only admin and dairy can access, farmers cannot
   {
     path: '/reports',
     permissions: { canView: true, canCreate: false, canEdit: false, canDelete: false },
-    roles: [UserRole.ADMIN, UserRole.DAIRY, UserRole.FARMER],
+    roles: [UserRole.ADMIN, UserRole.DAIRY],
     requiresSubscription: true, // Dairy needs subscription to access
   },
 
@@ -75,11 +75,11 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
     roles: [UserRole.ADMIN],
   },
 
-  // Subscription Plans - All roles can view (no subscription required)
+  // Subscription Plans - Only admin and dairy can access, farmers cannot
   {
     path: '/subscription-plans',
     permissions: { canView: true, canCreate: false, canEdit: false, canDelete: false },
-    roles: [UserRole.ADMIN, UserRole.DAIRY, UserRole.FARMER],
+    roles: [UserRole.ADMIN, UserRole.DAIRY],
     requiresSubscription: false, // No subscription required to view plans
   },
 

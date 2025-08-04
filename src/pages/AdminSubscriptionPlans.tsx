@@ -65,7 +65,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 
 export default function AdminSubscriptionPlans() {
   const { t } = useTranslation();
-  const { canCreate, canEdit, canDelete } = usePermissions();
+  const { canAccessFeature } = usePermissions();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -267,7 +267,7 @@ export default function AdminSubscriptionPlans() {
             {t('subscriptionPlans.subtitle')}
           </p>
         </div>
-        {canCreate() && (
+        {canAccessFeature('manageSubscriptionPlans') && (
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
               <Button onClick={() => setShowForm(true)}>
@@ -444,7 +444,7 @@ export default function AdminSubscriptionPlans() {
                           )}
                           <div className="flex items-center justify-between pt-2">
                             <div className="flex items-center gap-2">
-                              {canEdit() && (
+                              {canAccessFeature('manageSubscriptionPlans') && (
                                 <Switch
                                   checked={plan.isActive}
                                   onCheckedChange={() => handleToggleStatus(plan.id, plan.isActive)}
@@ -455,7 +455,7 @@ export default function AdminSubscriptionPlans() {
                               </span>
                             </div>
                             <div className="flex gap-1">
-                              {canEdit() && (
+                              {canAccessFeature('manageSubscriptionPlans') && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -464,7 +464,7 @@ export default function AdminSubscriptionPlans() {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               )}
-                              {canDelete() && (
+                                {canAccessFeature('manageSubscriptionPlans') && (
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button variant="ghost" size="sm">

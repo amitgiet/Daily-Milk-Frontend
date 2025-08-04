@@ -341,7 +341,14 @@
     "farmers": "Farmers",
     "averageFat": "Avg Fat %",
     "export": "Export",
-    "print": "Print"
+    "print": "Print",
+    "viewingOwnData": "Viewing My Data",
+    "myTotalLiters": "My Total Liters",
+    "myTotalAmount": "My Total Amount",
+    "myCollections": "My Collections",
+    "myAverageFat": "My Avg Fat %",
+    "myCollectionList": "My Collection List",
+    "noMyEntries": "No milk entries found for you"
   },
   "dairyRates": {
     "title": "Dairy Rates Management",

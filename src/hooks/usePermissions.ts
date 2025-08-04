@@ -1,48 +1,56 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { 
-  hasPermission, 
-  canAccessRoute, 
-  getRoutePermissions, 
-  getRoleName,
-  isAdmin,
-  isDairy,
-  isFarmer,
-  getSubscriptionStatus,
-  isSubscriptionActive
-} from '@/lib/permissions';
-import { UserRole } from '@/types/auth';
+import { useAuth } from '../contexts/AuthContext';
+import { isFarmer, isAdmin, isDairy } from '../lib/permissions';
 
 export const usePermissions = () => {
-  const { user, hasSubscription, dairySubscription } = useAuth();
-  const userRole = user?.roleId || UserRole.ADMIN;
+  const { user } = useAuth();
+  const userRole = user?.roleId || 1;
+
+  const isFarmerUser = isFarmer(userRole);
+  const isAdminUser = isAdmin(userRole);
+  const isDairyUser = isDairy(userRole);
+  const canManageMilk = isAdminUser || isDairyUser;
+  const canViewOwnData = isFarmerUser;
+  const canViewAllData = isAdminUser || isDairyUser;
+
+  // Get farmer-specific API parameters
+  const getFarmerFilterParams = () => {
+    if (isFarmerUser && user?.id) {
+      return `?farmerId=${user.id}`;
+    }
+    return '';
+  };
+
+  // Check if user can access specific features
+  const canAccessFeature = (feature: string) => {
+    switch (feature) {
+      case 'addMilkCollection':
+      case 'editMilkCollection':
+      case 'deleteMilkCollection':
+        return canManageMilk;
+      case 'viewOwnMilkData':
+        return canViewOwnData;
+      case 'viewAllMilkData':
+        return canViewAllData;
+      case 'manageFarmers':
+        return isAdminUser || isDairyUser;
+      case 'viewReports':
+        return isAdminUser || isDairyUser;
+      case 'manageSettings':
+        return isAdminUser;
+      default:
+        return false;
+    }
+  };
 
   return {
-    // User role information
     userRole,
-    roleName: getRoleName(userRole),
-    isAdmin: isAdmin(userRole),
-    isDairy: isDairy(userRole),
-    isFarmer: isFarmer(userRole),
-
-    // Subscription information
-    hasSubscription,
-    dairySubscription,
-    subscriptionStatus: getSubscriptionStatus(dairySubscription),
-    isSubscriptionActive: isSubscriptionActive(dairySubscription),
-
-    // Permission checks
-    canView: (permission?: keyof typeof hasPermission) => 
-      permission ? hasPermission(userRole, permission) : hasPermission(userRole, 'canView'),
-    canCreate: () => hasPermission(userRole, 'canCreate'),
-    canEdit: () => hasPermission(userRole, 'canEdit'),
-    canDelete: () => hasPermission(userRole, 'canDelete'),
-
-    // Route access (with subscription check)
-    canAccessRoute: (path: string) => canAccessRoute(userRole, path, hasSubscription),
-    getRoutePermissions: (path: string) => getRoutePermissions(userRole, path, hasSubscription),
-
-    // Helper functions
-    hasAnyPermission: (permissions: Array<'canView' | 'canCreate' | 'canEdit' | 'canDelete'>) => 
-      permissions.some(permission => hasPermission(userRole, permission)),
+    isFarmerUser,
+    isAdminUser,
+    isDairyUser,
+    canManageMilk,
+    canViewOwnData,
+    canViewAllData,
+    getFarmerFilterParams,
+    canAccessFeature,
   };
 }; 

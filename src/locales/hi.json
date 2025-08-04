@@ -341,7 +341,14 @@
     "farmers": "किसान",
     "averageFat": "औसत वसा %",
     "export": "निर्यात",
-    "print": "प्रिंट"
+    "print": "प्रिंट",
+    "viewingOwnData": "मेरा डेटा देख रहा हूं",
+    "myTotalLiters": "मेरे कुल लीटर",
+    "myTotalAmount": "मेरी कुल राशि",
+    "myCollections": "मेरे संग्रह",
+    "myAverageFat": "मेरी औसत वसा %",
+    "myCollectionList": "मेरी संग्रह सूची",
+    "noMyEntries": "आपके लिए कोई दूध प्रविष्टि नहीं मिली"
   },
   "dairyRates": {
     "title": "डेयरी दर प्रबंधन",
