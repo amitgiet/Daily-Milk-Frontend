@@ -43,7 +43,7 @@ VITE_DEV_PROXY_URL=https://dairy-management-7yqn.onrender.com
 ### How It Works
 
 - **Development**: Uses Vite proxy (`/api`) to avoid CORS issues
-- **Production**: Uses direct API calls to the backend URL
+- **Production**: Uses Vercel rewrites (`/api`) to proxy requests to the backend
 - **Environment Variables**: Allow you to change the backend URL without code changes
 
 ### Important Notes

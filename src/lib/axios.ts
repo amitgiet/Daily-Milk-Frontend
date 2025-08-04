@@ -2,9 +2,9 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: import.meta.env.PROD 
-    ? import.meta.env.VITE_API_BASE_URL || 'https://dairy-management-7yqn.onrender.com'
-    : '/api', // Use proxy in development
+  // For now, use proxy in both development and production to avoid CORS issues
+  // Once backend CORS is properly configured, we can switch to direct API calls
+  baseURL: '/api', // Use proxy in both dev and prod
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
