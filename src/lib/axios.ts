@@ -4,7 +4,7 @@ import axios from 'axios';
 const api = axios.create({
   // Use proxy in both development and production to avoid CORS issues
   baseURL: '/api', // Use proxy in both dev and prod
-  timeout: 10000,
+  timeout: 30000, // Increased timeout to 30 seconds
   headers: {
     'Content-Type': 'application/json',
   },
@@ -35,8 +35,8 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    // Return the full response object
-    return response.data;
+    // Return the full response object for consistent handling
+    return response;
   },
   (error) => {
     // Handle different error scenarios
@@ -44,19 +44,27 @@ api.interceptors.response.use(
       // Server responded with error status
       const { status, data } = error.response;
       
-             switch (status) {
-         case 401:
-           // Unauthorized - clear token and redirect to login
-           localStorage.removeItem('authToken');
-           localStorage.removeItem('isAuthenticated');
-           window.location.href = '/login';
-           break;
-         case 403:
-           // Forbidden - logout user
-           localStorage.removeItem('authToken');
-           localStorage.removeItem('isAuthenticated');
-           window.location.href = '/login';
-           break;
+      // Log detailed error information for debugging
+      console.error(`API Error ${status}:`, {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: data,
+        headers: error.config?.headers
+      });
+      
+      switch (status) {
+        case 401:
+          // Unauthorized - clear token and redirect to login
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('isAuthenticated');
+          window.location.href = '/login';
+          break;
+        case 403:
+          // Forbidden - logout user
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('isAuthenticated');
+          window.location.href = '/login';
+          break;
         case 404:
           // Not found
           console.error('Resource not found:', data);
@@ -66,8 +74,14 @@ api.interceptors.response.use(
           console.error('Validation error:', data);
           break;
         case 500:
-          // Server error
-          console.error('Server error:', data);
+          // Server error - log more details
+          console.error('Server error (500):', {
+            message: data?.message || 'Internal server error',
+            data: data,
+            url: error.config?.url,
+            method: error.config?.method,
+            timestamp: new Date().toISOString()
+          });
           break;
         default:
           console.error('API error:', data);
@@ -78,20 +92,36 @@ api.interceptors.response.use(
         message: data?.message || 'An error occurred',
         status,
         data,
+        url: error.config?.url,
+        method: error.config?.method
       });
     } else if (error.request) {
       // Network error
-      console.error('Network error:', error.request);
+      console.error('Network error:', {
+        request: error.request,
+        url: error.config?.url,
+        method: error.config?.method,
+        timestamp: new Date().toISOString()
+      });
       return Promise.reject({
         message: 'Network error. Please check your connection.',
         status: 0,
+        url: error.config?.url,
+        method: error.config?.method
       });
     } else {
       // Other error
-      console.error('Request error:', error.message);
+      console.error('Request error:', {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+        timestamp: new Date().toISOString()
+      });
       return Promise.reject({
         message: error.message || 'An unexpected error occurred',
         status: 0,
+        url: error.config?.url,
+        method: error.config?.method
       });
     }
   }

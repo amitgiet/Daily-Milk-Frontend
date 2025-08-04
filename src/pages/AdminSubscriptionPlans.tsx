@@ -88,7 +88,7 @@ export default function AdminSubscriptionPlans() {
     try {
       const response = await apiCall(allRoutes.subscriptions.list, 'get');
       if (response.success && response.data) {
-        const plansData = Array.isArray(response.data) ? response.data : [];
+        const plansData = Array.isArray(response.data.data) ? response.data.data : [];
         setPlans(plansData);
       } else {
         setPlans([]);

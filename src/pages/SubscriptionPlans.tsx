@@ -49,7 +49,7 @@ export default function SubscriptionPlans() {
     try {
       const response = await apiCall(allRoutes.subscriptions.list, 'get');
       if (response.success && response.data) {
-        const plansData = Array.isArray(response.data) ? response.data : [];
+        const plansData = Array.isArray(response.data.data) ? response.data.data : [];
         // Only show active plans to users
         const activePlans = plansData.filter(plan => plan.isActive);
         setPlans(activePlans);

@@ -40,14 +40,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const token = localStorage.getItem('authToken');
     const isAuth = localStorage.getItem('isAuthenticated') === 'true';
     
+    console.log('🔐 AuthContext initialization:', {
+      hasToken: !!token,
+      isAuth,
+      timestamp: new Date().toISOString()
+    });
+    
     if (token && isAuth) {
       setIsAuthenticated(true);
       // Skip refresh token, just set loading to false
       setIsLoading(false);
+      console.log('🔐 AuthContext: User authenticated from localStorage');
     } else {
       setIsLoading(false);
+      console.log('🔐 AuthContext: No valid authentication found');
     }
   }, []);
+
+  // Monitor authentication state changes
+  useEffect(() => {
+    console.log('🔐 AuthContext state changed:', {
+      isAuthenticated,
+      isLoading,
+      hasUser: !!user,
+      timestamp: new Date().toISOString()
+    });
+  }, [isAuthenticated, isLoading, user]);
 
   const login = async (phone: string, password: string): Promise<boolean> => {
     try {

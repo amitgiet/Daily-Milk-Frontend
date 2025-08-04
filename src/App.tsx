@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RouteLogger from "./components/RouteLogger";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -29,41 +30,34 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <RouteLogger />
           <Routes>
+            {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            
+            {/* Protected routes with Layout */}
             <Route
-              path="*"
+              path="/"
               element={
                 <ProtectedRoute>
-                  <Layout>
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      {/* <Route path="/inventory" element={<Inventory />} /> */}
-                      <Route
-                        path="/milk-collection"
-                        element={<MilkCollection />}
-                      />
-                      {/* <Route path="/dairy-rates" element={<DairyRates />} /> */}
-                      <Route path="/customers" element={<Customers />} />
-                      <Route path="/orders" element={<Orders />} />
-                      <Route path="/reports" element={<Reports />} />
-                      <Route path="/settings" element={<Settings />} />
-                              <Route
-          path="/subscription-plans"
-          element={<SubscriptionPlans />}
-        />
-        <Route
-          path="/admin-subscription-plans"
-          element={<AdminSubscriptionPlans />}
-        />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Layout>
+                  <Layout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              {/* <Route path="inventory" element={<Inventory />} /> */}
+              <Route path="milk-collection" element={<MilkCollection />} />
+              {/* <Route path="dairy-rates" element={<DairyRates />} /> */}
+              <Route path="customers" element={<Customers />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="subscription-plans" element={<SubscriptionPlans />} />
+              <Route path="admin-subscription-plans" element={<AdminSubscriptionPlans />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
