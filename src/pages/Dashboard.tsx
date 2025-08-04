@@ -42,22 +42,22 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   // Example of using API hooks
-  const { data: dashboardStats, loading: statsLoading, error: statsError } = useQuery(
-    () => apiCall(allRoutes.dashboard.getStats, 'get'),
-    {
-      autoExecute: true,
-      onError: (error) => {
-        console.error('Failed to load dashboard stats:', error);
-      }
-    }
-  );
+  // const { data: dashboardStats, loading: statsLoading, error: statsError } = useQuery(
+  //   () => apiCall(allRoutes.dashboard.getStats, 'get'),
+  //   {
+  //     autoExecute: true,
+  //     onError: (error) => {
+  //       console.error('Failed to load dashboard stats:', error);
+  //     }
+  //   }
+  // );
 
-  const { data: lowStockAlerts, loading: alertsLoading } = useQuery(
-    () => apiCall(allRoutes.dashboard.getLowStockAlerts, 'get'),
-    {
-      autoExecute: true
-    }
-  );
+  // const { data: lowStockAlerts, loading: alertsLoading } = useQuery(
+  //   () => apiCall(allRoutes.dashboard.getLowStockAlerts, 'get'),
+  //   {
+  //     autoExecute: true
+  //   }
+  // );
 
   const handleAddNewProduct = () => {
     navigate('/inventory');

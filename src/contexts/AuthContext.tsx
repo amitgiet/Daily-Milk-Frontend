@@ -1,14 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiCall } from '../lib/apiCall';
 import { allRoutes } from '../lib/apiRoutes';
-
-interface User {
-  id: number;
-  name: string;
-  phone: string;
-  dairyId: number;
-  email?: string;
-}
+import { User, LoginResponse, RegisterResponse, RefreshTokenResponse, ApiResponse } from '../types/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -45,8 +38,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    if (token) {
-      refreshUser();
+    const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+    
+    if (token && isAuth) {
+      setIsAuthenticated(true);
+      // Skip refresh token, just set loading to false
+      setIsLoading(false);
     } else {
       setIsLoading(false);
     }
@@ -54,9 +51,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (phone: string, password: string): Promise<boolean> => {
     try {
-      const response = await apiCall(allRoutes.auth.login, 'post', { phone, password });
+      const response = await apiCall(allRoutes.auth.login, 'post', { phone, password }) as ApiResponse<LoginResponse>;
       if (response.success && response.data?.accessToken) {
         localStorage.setItem('authToken', response.data.accessToken);
+        localStorage.setItem('isAuthenticated', 'true');
         setUser(response.data.user || { id: 0, name: '', phone, dairyId: 0 });
         setIsAuthenticated(true);
         return true;
@@ -75,9 +73,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         data.referralCode = referralCode;
       }
       
-      const response = await apiCall(allRoutes.auth.register, 'post', data);
+      const response = await apiCall(allRoutes.auth.register, 'post', data) as ApiResponse<RegisterResponse>;
       if (response.success && response.data?.accessToken) {
         localStorage.setItem('authToken', response.data.accessToken);
+        localStorage.setItem('isAuthenticated', 'true');
         setUser(response.data.user || { id: 0, name, phone, dairyId: 0 });
         setIsAuthenticated(true);
         return true;
@@ -98,27 +97,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       // Clear local storage and state regardless of API call success
       localStorage.removeItem('authToken');
+      localStorage.removeItem('isAuthenticated');
       setUser(null);
       setIsAuthenticated(false);
     }
   };
 
   const refreshUser = async () => {
-    try {
-      const response = await apiCall(allRoutes.auth.refreshToken, 'post');
-      if (response.success && response.data?.user) {
-        setUser(response.data.user);
-        setIsAuthenticated(true);
-      } else {
-        // If refresh fails, logout user
-        logout();
-      }
-    } catch (error) {
-      console.error('Refresh user error:', error);
-      logout();
-    } finally {
-      setIsLoading(false);
-    }
+    // Skip refresh token functionality - just set loading to false
+    setIsLoading(false);
   };
 
   const forgotPassword = async (phone: string): Promise<boolean> => {
@@ -156,17 +143,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const refreshToken = async (): Promise<boolean> => {
-    try {
-      const response = await apiCall(allRoutes.auth.refreshToken, 'post');
-      if (response.success && response.data?.accessToken) {
-        localStorage.setItem('authToken', response.data.accessToken);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Refresh token error:', error);
-      return false;
-    }
+    // Skip refresh token functionality
+    return false;
   };
 
   const value: AuthContextType = {

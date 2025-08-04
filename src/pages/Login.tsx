@@ -147,15 +147,9 @@ const Login = () => {
     setContactAdminSuccess(false);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock contact admin logic - in real app, send message to backend
-      if (data.name && data.phone && data.message) {
-        setContactAdminSuccess(true);
-      } else {
-        setContactAdminError(t('login.fillAllFields'));
-      }
+      // TODO: Implement real contact admin API call
+      // For now, show success message
+      setContactAdminSuccess(true);
     } catch (error) {
       setContactAdminError(t('login.contactError'));
     } finally {
@@ -177,7 +171,7 @@ const Login = () => {
         <LanguageSwitcher />
       </div>
       
-      {/* <Card className="w-full max-w-md shadow-lg">
+      <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="bg-primary/10 p-3 rounded-full">
@@ -288,16 +282,6 @@ const Login = () => {
               >
                 {t('signup.createAccount')}
               </Link>
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              <Button 
-                type="button"
-                variant="link" 
-                className="text-primary hover:text-primary/80 p-0 h-auto"
-                onClick={() => setShowContactAdmin(true)}
-              >
-                {t('login.contactAdministrator')}
-              </Button>
             </p>
           </div>
 
@@ -421,150 +405,6 @@ const Login = () => {
           )}
         </DialogContent>
       </Dialog>
-
-      <Dialog open={showContactAdmin} onOpenChange={(open) => {
-        if (!open) handleCloseContactAdmin();
-      }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ArrowLeft 
-                className="h-5 w-5 cursor-pointer text-muted-foreground hover:text-foreground" 
-                onClick={handleCloseContactAdmin}
-              />
-              {t('login.contactAdministrator')}
-            </DialogTitle>
-          </DialogHeader>
-
-          {contactAdminSuccess ? (
-            <div className="space-y-6 py-4">
-              <div className="text-center space-y-4">
-                <div className="flex justify-center">
-                  <div className="bg-success/10 p-3 rounded-full">
-                    <Send className="h-8 w-8 text-success" />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    {t('login.messageSent')}
-                  </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {t('login.messageSentDescription')}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <Button 
-                  onClick={handleCloseContactAdmin}
-                  className="w-full bg-primary hover:bg-primary/90"
-                >
-                  {t('login.backToLogin')}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => {
-                    setContactAdminSuccess(false);
-                    setContactAdminError("");
-                  }}
-                >
-                  {t('login.sendAnotherMessage')}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmitContact(handleContactAdmin)} className="space-y-6 py-4">
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  {t('login.contactAdminDescription')}
-                </p>
-
-                {contactAdminError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{contactAdminError}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="contact-name">{t('login.fullName')}</Label>
-                  <Input
-                    id="contact-name"
-                    type="text"
-                    placeholder={t('login.fullNamePlaceholder')}
-                    {...registerContact("name")}
-                  />
-                  {contactErrors.name && (
-                    <p className="text-sm text-destructive">{contactErrors.name.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contact-phone">{t('auth.phone')}</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      id="contact-phone"
-                      type="tel"
-                      placeholder={t('login.phonePlaceholder')}
-                      className="pl-10"
-                      {...registerContact("phone")}
-                    />
-                  </div>
-                  {contactErrors.phone && (
-                    <p className="text-sm text-destructive">{contactErrors.phone.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contact-message">{t('login.message')}</Label>
-                  <div className="relative">
-                    <MessageSquare className="absolute left-3 top-3 text-muted-foreground h-4 w-4" />
-                    <Textarea
-                      id="contact-message"
-                      placeholder={t('login.messagePlaceholder')}
-                      className="pl-10 min-h-[100px] resize-none"
-                      {...registerContact("message")}
-                    />
-                  </div>
-                  {contactErrors.message && (
-                    <p className="text-sm text-destructive">{contactErrors.message.message}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Button 
-                  type="submit" 
-                  className="w-full bg-primary hover:bg-primary/90"
-                  disabled={contactAdminLoading}
-                >
-                  {contactAdminLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      {t('login.sendingMessage')}
-                    </div>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      {t('login.sendMessage')}
-                    </>
-                  )}
-                </Button>
-                <Button 
-                  type="button"
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleCloseContactAdmin}
-                >
-                  {t('common.cancel')}
-                </Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog> */}
     </div>
   );
 };

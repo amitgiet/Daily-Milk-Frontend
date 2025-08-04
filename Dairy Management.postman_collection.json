@@ -238,103 +238,6 @@
 			]
 		},
 		{
-			"name": "Milk",
-			"item": [
-				{
-					"name": "Collect",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"farmerId\" : 4,\n    \"date\" : \"2025-07-31\",\n    \"shift\" : \"morning\",\n    \"quantity\" : 5,\n    \"fat\" : 4,\n    \"snf\" : 2\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base-url}}/admin/milk/collect",
-							"host": [
-								"{{base-url}}"
-							],
-							"path": [
-								"admin",
-								"milk",
-								"collect"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "{{base-url}}/admin/milk/list?farmerId&startDate&endDate&shift",
-							"host": [
-								"{{base-url}}"
-							],
-							"path": [
-								"admin",
-								"milk",
-								"list"
-							],
-							"query": [
-								{
-									"key": "farmerId",
-									"value": null
-								},
-								{
-									"key": "startDate",
-									"value": null
-								},
-								{
-									"key": "endDate",
-									"value": null
-								},
-								{
-									"key": "shift",
-									"value": null
-								}
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
 			"name": "Dairy",
 			"item": [
 				{
@@ -446,6 +349,103 @@
 					]
 				},
 				{
+					"name": "Milk",
+					"item": [
+						{
+							"name": "Collect",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"farmerId\" : 4,\n    \"date\" : \"2025-07-31\",\n    \"shift\" : \"morning\",\n    \"quantity\" : 5,\n    \"fat\" : 4,\n    \"snf\" : 2\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base-url}}/admin/milk/collect",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"milk",
+										"collect"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{base-url}}/admin/milk/list?farmerId&startDate&endDate&shift",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"milk",
+										"list"
+									],
+									"query": [
+										{
+											"key": "farmerId",
+											"value": null
+										},
+										{
+											"key": "startDate",
+											"value": null
+										},
+										{
+											"key": "endDate",
+											"value": null
+										},
+										{
+											"key": "shift",
+											"value": null
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
 					"name": "Update Rates",
 					"request": {
 						"auth": {
@@ -511,6 +511,149 @@
 						}
 					},
 					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Subscription Plans",
+					"item": [
+						{
+							"name": "Add",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\" : \"Basic\",\n    \"durationDays\" : 30,\n    \"price\" : 100\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base-url}}/admin/subscriptions",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"subscriptions"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\" : \"Basic\",\n    \"durationDays\" : 40,\n    \"price\" : 100\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base-url}}/admin/subscriptions/1",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"subscriptions",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base-url}}/admin/subscriptions",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"subscriptions"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Active/Inactive",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [],
+								"url": {
+									"raw": "{{base-url}}/admin/subscriptions/1/status",
+									"host": [
+										"{{base-url}}"
+									],
+									"path": [
+										"admin",
+										"subscriptions",
+										"1",
+										"status"
+									]
+								}
+							},
+							"response": []
+						}
+					]
 				}
 			]
 		}

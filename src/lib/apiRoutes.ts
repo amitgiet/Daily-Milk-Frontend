@@ -10,10 +10,10 @@ export const allRoutes = {
     logout: '/auth/logout'
   },
   farmers: {
-    list: '/admin/farmers',
-    add: '/admin/farmers',
-    update: (id: string | number) => `/admin/farmers/${id}`,
-    get: (id: string | number) => `/admin/farmers/${id}`,
+    getFarmers: '/admin/farmers',
+    addFarmer: '/admin/farmers',
+    updateFarmer: (id: string | number) => `/admin/farmers/${id}`,
+    getFarmer: (id: string | number) => `/admin/farmers/${id}`,
     delete: (id: string | number) => `/admin/farmers/${id}`
   },
   milkCollection: {

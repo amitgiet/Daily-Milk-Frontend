@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'http://192.168.10.212:3005',
+  baseURL: '/api', // Use proxy in development
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -43,16 +43,19 @@ api.interceptors.response.use(
       // Server responded with error status
       const { status, data } = error.response;
       
-      switch (status) {
-        case 401:
-          // Unauthorized - clear token and redirect to login
-          localStorage.removeItem('authToken');
-          window.location.href = '/login';
-          break;
-        case 403:
-          // Forbidden
-          console.error('Access forbidden:', data);
-          break;
+             switch (status) {
+         case 401:
+           // Unauthorized - clear token and redirect to login
+           localStorage.removeItem('authToken');
+           localStorage.removeItem('isAuthenticated');
+           window.location.href = '/login';
+           break;
+         case 403:
+           // Forbidden - logout user
+           localStorage.removeItem('authToken');
+           localStorage.removeItem('isAuthenticated');
+           window.location.href = '/login';
+           break;
         case 404:
           // Not found
           console.error('Resource not found:', data);
