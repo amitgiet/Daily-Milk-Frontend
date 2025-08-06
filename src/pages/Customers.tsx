@@ -93,9 +93,7 @@ interface Farmer {
 // Farmer form schema based on API requirements
 const farmerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits").max(15, "Phone number too long"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  dairyId: z.number().min(1, "Dairy ID is required"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").max(15, "Phone number too long")
 });
 
 type FarmerFormData = z.infer<typeof farmerSchema>;
@@ -119,8 +117,6 @@ export default function Customers() {
     defaultValues: {
       name: "",
       phone: "",
-      password: "",
-      dairyId: 1, // Default dairy ID
     },
   });
 
@@ -169,6 +165,7 @@ export default function Customers() {
         }
       } else {
         // Add new farmer
+        console.log("dsdsd", data)
         const response = await apiCall(allRoutes.farmers.addFarmer, "post", data);
         if (response.success) {
           toast.success(t("farmers.farmerAdded"));
@@ -190,8 +187,6 @@ export default function Customers() {
     setEditingFarmer(farmer);
     setValue("name", farmer.name);
     setValue("phone", farmer.phone);
-    setValue("dairyId", farmer.dairyId);
-    setValue("password", ""); // Don't populate password for security
     setShowAddDialog(true);
   };
 
@@ -272,7 +267,7 @@ export default function Customers() {
                   </p>
                 )}
               </div>
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label htmlFor="password">
                   {editingFarmer ? t("farmers.newPassword") + " (" + t("farmers.leaveBlankForCurrent") + ")" : t("farmers.password") + " *"}
                 </Label>
@@ -287,8 +282,8 @@ export default function Customers() {
                     {errors.password.message}
                   </p>
                 )}
-              </div>
-              <div className="space-y-2">
+              </div> */}
+              {/* <div className="space-y-2">
                 <Label htmlFor="dairyId">{t("farmers.dairyId")} *</Label>
                 <Input
                   id="dairyId"
@@ -301,7 +296,7 @@ export default function Customers() {
                     {errors.dairyId.message}
                   </p>
                 )}
-              </div>
+              </div> */}
             </div>
             <div className="flex justify-end gap-3 pt-4">
               <Button

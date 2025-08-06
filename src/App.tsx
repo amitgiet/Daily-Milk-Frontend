@@ -19,6 +19,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import AdminSubscriptionPlans from "./pages/AdminSubscriptionPlans";
+import DairyListing from "./pages/DairyListing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
               <Route path="subscription-plans" element={<SubscriptionPlans />} />
+              <Route path="dairy-listing" element={<DairyListing />} />
               <Route path="admin-subscription-plans" element={<AdminSubscriptionPlans />} />
               <Route path="*" element={<NotFound />} />
             </Route>

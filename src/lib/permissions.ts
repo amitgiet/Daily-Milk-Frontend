@@ -89,6 +89,14 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
     permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     roles: [UserRole.ADMIN],
   },
+
+  // Dairy Listing - Only admin and dairy can access, farmers cannot
+  {
+    path: '/dairy-listing',
+    permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    roles: [UserRole.ADMIN],
+    requiresSubscription: false, // Dairy needs subscription to access
+  },
 ];
 
 // Utility functions

@@ -56,5 +56,5 @@ export const allRoutes = {
     pendingRequests: '/admin/subscriptions/pending-requests',
     updateRequestStatus: (id: string | number) => `/admin/subscriptions/update-status/${id}`,
     request: '/admin/subscriptions/request'
-  }
+  },
 }; 

@@ -43,6 +43,7 @@ import {
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { toast } from "react-toastify";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MilkRateSettings {
   fatRate: number | string;
@@ -51,6 +52,7 @@ interface MilkRateSettings {
 }
 
 export default function Settings() {
+  const { user } = useAuth();
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [show2FADialog, setShow2FADialog] = useState(false);
   const [showLoginHistoryDialog, setShowLoginHistoryDialog] = useState(false);
@@ -78,6 +80,7 @@ export default function Settings() {
   });
   const [isLoadingMilkRates, setIsLoadingMilkRates] = useState(false);
   const [isSavingMilkRates, setIsSavingMilkRates] = useState(false);
+  const [userData, setUserData] = useState(user);
 
   // Load milk rate settings on component mount
   useEffect(() => {
@@ -89,7 +92,7 @@ export default function Settings() {
     try {
       const response = await apiCall(allRoutes.dairy.rates, "get");
       if (response.success && response.data) {
-        const data = response.data as unknown as MilkRateSettings;
+        const data = response.data.data as unknown as MilkRateSettings;
         setMilkRateSettings({
           fatRate: data.fatRate?.toString() || "2.00",
           snfRate: data.snfRate?.toString() || "1.00",
@@ -119,7 +122,7 @@ export default function Settings() {
   const handleSaveMilkRates = async () => {
     setIsSavingMilkRates(true);
     try {
-      const response = await apiCall(allRoutes.dairy.updateRates, "put", {
+      const response = await apiCall(allRoutes.dairy.updateRates, "post", {
         fatRate: parseFloat(milkRateSettings.fatRate),
         snfRate: parseFloat(milkRateSettings.snfRate),
         formulaType: milkRateSettings.formulaType,
@@ -147,28 +150,35 @@ export default function Settings() {
     }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (
       !passwordData.currentPassword ||
       !passwordData.newPassword ||
       !passwordData.confirmPassword
     ) {
-      alert("Please fill in all password fields");
+      toast.error("Please fill in all password fields");
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("New password and confirm password do not match");
+      toast.error("New password and confirm password do not match");
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      alert("New password must be at least 6 characters long");
+      toast.error("New password must be at least 6 characters long");
       return;
     }
-
-    // Simulate password change
-    alert("Password changed successfully!");
+    const response = await apiCall(allRoutes.auth.changePassword, "post", {
+      phone: userData.phone,
+      new_password: passwordData.newPassword,
+      confirm_password: passwordData.confirmPassword,
+    }); 
+    if (response.success) {
+      toast.success("Password changed successfully!");
+    } else {
+      toast.error("Failed to change password"); 
+    }
     setShowPasswordDialog(false);
     setPasswordData({
       currentPassword: "",
@@ -341,6 +351,19 @@ export default function Settings() {
     }
   };
 
+  const handleUpdateProfile = async () => {
+    const response = await apiCall(
+      allRoutes.farmers.updateFarmer(userData.id),
+      "put",
+      userData
+    );
+    if (response.success) {
+      toast.success("Profile updated successfully");
+    } else {
+      toast.error("Failed to update profile");
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -364,19 +387,25 @@ export default function Settings() {
               <label className="text-sm font-medium">Name</label>
               <input
                 type="text"
+                value={userData?.name}
+                onChange={(e) =>
+                  setUserData({ ...userData, name: e.target.value })
+                }
                 className="w-full p-2 border border-border rounded-md bg-background"
-                defaultValue="Admin User"
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Email</label>
               <input
                 type="email"
+                value={userData?.email}
+                onChange={(e) =>
+                  setUserData({ ...userData, email: e.target.value })
+                }
                 className="w-full p-2 border border-border rounded-md bg-background"
-                defaultValue="admin@dairytrack.com"
               />
             </div>
-            <Button>Update Profile</Button>
+            <Button onClick={handleUpdateProfile}>Update Profile</Button>
           </CardContent>
         </Card>
         <Card>
@@ -397,7 +426,7 @@ export default function Settings() {
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="fatRate">Fat Rate / वसा दर (₹ per %)</Label>
+                  <Label htmlFor="fatRate">Fat Rate </Label>
                   <Input
                     id="fatRate"
                     type="number"
@@ -413,13 +442,12 @@ export default function Settings() {
                     placeholder="2.00"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Rate per percentage of fat content / वसा प्रतिशत के अनुसार
-                    दर
+                    Rate per percentage of fat content
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="snfRate">SNF Rate / SNF दर (₹ per %)</Label>
+                  <Label htmlFor="snfRate">SNF Rate </Label>
                   <Input
                     id="snfRate"
                     type="number"
@@ -435,8 +463,7 @@ export default function Settings() {
                     placeholder="1.00"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Rate per percentage of SNF content / SNF प्रतिशत के अनुसार
-                    दर
+                    Rate per percentage of SNF content
                   </p>
                 </div>
 
@@ -517,7 +544,7 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-primary" />
@@ -556,7 +583,7 @@ export default function Settings() {
               <Switch defaultChecked />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* <Card>
           <CardHeader>

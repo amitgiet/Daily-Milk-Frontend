@@ -18,6 +18,7 @@ import {
   CreditCard,
   Calculator,
   AlertTriangle,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,11 @@ export default function Layout() {
     },
     { name: t("navigation.customers"), href: "/customers", icon: User },
     // { name: t("navigation.reports"), href: "/reports", icon: BarChart3 },
+    {
+      name: "All Users and Farmers",
+      href: "/dairy-listing",
+      icon: Building2,
+    },
     {
       name: t("navigation.subscriptionPlans"),
       href: "/subscription-plans",
