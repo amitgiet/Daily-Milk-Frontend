@@ -171,7 +171,7 @@ export default function Customers() {
         const response = await apiCall(
           allRoutes.farmers.addFarmer,
           "post",
-          data
+          {...data, password: data.phone}
         );
         if (response.success) {
           toast.success(t("farmers.farmerAdded"));
