@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -52,6 +53,7 @@ interface MilkRateSettings {
 }
 
 export default function Settings() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [show2FADialog, setShow2FADialog] = useState(false);
@@ -111,9 +113,7 @@ export default function Settings() {
           formulaType: settings.formulaType || "fatOnly",
         });
       }
-      toast.error(
-        "Failed to load milk rate settings from server, using local settings"
-      );
+      toast.error(t("settings.usingLocalSettings"));
     } finally {
       setIsLoadingMilkRates(false);
     }
@@ -138,13 +138,13 @@ export default function Settings() {
             formulaType: milkRateSettings.formulaType,
           })
         );
-        toast.success("Milk rate settings updated successfully!");
+        toast.success(t("settings.milkRateSettingsUpdated"));
       } else {
-        toast.error("Failed to update milk rate settings");
+        toast.error(t("settings.failedToUpdateMilkRates"));
       }
     } catch (error) {
       console.error("Error saving milk rate settings:", error);
-      toast.error("Failed to save milk rate settings");
+      toast.error(t("settings.failedToSaveMilkRates"));
     } finally {
       setIsSavingMilkRates(false);
     }
@@ -156,17 +156,17 @@ export default function Settings() {
       !passwordData.newPassword ||
       !passwordData.confirmPassword
     ) {
-      toast.error("Please fill in all password fields");
+      toast.error(t("settings.fillAllPasswordFields"));
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error("New password and confirm password do not match");
+      toast.error(t("settings.passwordsDoNotMatch"));
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters long");
+      toast.error(t("settings.passwordMinLength"));
       return;
     }
     const response = await apiCall(allRoutes.auth.changePassword, "post", {
@@ -175,9 +175,9 @@ export default function Settings() {
       confirm_password: passwordData.confirmPassword,
     }); 
     if (response.success) {
-      toast.success("Password changed successfully!");
+      toast.success(t("settings.passwordChanged"));
     } else {
-      toast.error("Failed to change password"); 
+      toast.error(t("settings.failedToChangePassword")); 
     }
     setShowPasswordDialog(false);
     setPasswordData({
@@ -194,37 +194,37 @@ export default function Settings() {
 
   const handleEnable2FA = () => {
     if (verificationCode.length !== 6) {
-      alert("Please enter a 6-digit verification code");
+      alert(t("settings.enter6DigitCode"));
       return;
     }
 
     // Simulate 2FA verification
     if (verificationCode === "123456") {
       setTwoFactorEnabled(true);
-      alert("Two-Factor Authentication enabled successfully!");
+      alert(t("settings.enable2FASuccess"));
       setShow2FADialog(false);
       setTwoFactorStep(1);
       setVerificationCode("");
     } else {
-      alert("Invalid verification code. Please try again.");
+      alert(t("settings.invalidVerificationCode"));
     }
   };
 
   const handleDisable2FA = () => {
     if (verificationCode.length !== 6) {
-      alert("Please enter a 6-digit verification code to disable 2FA");
+      alert(t("settings.enter6DigitCodeToDisable"));
       return;
     }
 
     // Simulate 2FA verification for disabling
     if (verificationCode === "123456") {
       setTwoFactorEnabled(false);
-      alert("Two-Factor Authentication disabled successfully!");
+      alert(t("settings.disable2FASuccess"));
       setShow2FADialog(false);
       setTwoFactorStep(1);
       setVerificationCode("");
     } else {
-      alert("Invalid verification code. Please try again.");
+      alert(t("settings.invalidVerificationCode"));
     }
   };
 
@@ -285,13 +285,12 @@ export default function Settings() {
   const handleExportHistory = () => {
     // Create CSV content
     const headers = [
-      "Date",
-      "Time",
-      "Device",
-      "Browser",
-      "Location",
-      "IP Address",
-      "Status",
+      t("settings.dateTime"),
+      t("settings.device"),
+      t("settings.browser"),
+      t("settings.location"),
+      t("settings.ipAddress"),
+      t("settings.status"),
     ];
     const csvContent = [
       headers.join(","),
@@ -323,31 +322,29 @@ export default function Settings() {
     link.click();
     document.body.removeChild(link);
 
-    alert(`Login history exported successfully as ${fileName}`);
+    alert(`${t("settings.loginHistoryExported")} ${fileName}`);
   };
 
   const handleTerminateAllSessions = () => {
     if (!terminatePassword) {
-      alert("Please enter your password to confirm session termination");
+      alert(t("settings.enterPasswordToConfirmTermination"));
       return;
     }
 
     // Simulate password verification (in real app, this would verify against actual password)
     if (terminatePassword === "admin123") {
       // Simulate terminating all sessions
-      alert(
-        "All sessions have been terminated successfully! You will need to log in again on all devices."
-      );
+      alert(t("settings.allSessionsTerminatedSuccess"));
       setShowTerminateSessionsDialog(false);
       setShowLoginHistoryDialog(false);
       setTerminatePassword("");
 
       // In a real app, this would redirect to login page or refresh the authentication state
       setTimeout(() => {
-        alert("Redirecting to login page...");
+        alert(t("settings.redirectingToLogin"));
       }, 1000);
     } else {
-      alert("Invalid password. Please try again.");
+      alert(t("settings.invalidPassword"));
     }
   };
 
@@ -358,18 +355,18 @@ export default function Settings() {
       userData
     );
     if (response.success) {
-      toast.success("Profile updated successfully");
+      toast.success(t("settings.profileUpdated"));
     } else {
-      toast.error("Failed to update profile");
+      toast.error(t("settings.failedToUpdateProfile"));
     }
   };
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t("settings.title")}</h1>
         <p className="text-muted-foreground">
-          Configure your dairy management system
+          {t("settings.subtitle")}
         </p>
       </div>
 
@@ -378,13 +375,13 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5 text-primary" />
-              User Profile
+              {t("settings.userProfile")}
             </CardTitle>
-            <CardDescription>Manage your account settings</CardDescription>
+            <CardDescription>{t("settings.manageAccountSettings")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium">{t("settings.name")}</label>
               <input
                 type="text"
                 value={userData?.name}
@@ -395,7 +392,7 @@ export default function Settings() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
+              <label className="text-sm font-medium">{t("settings.email")}</label>
               <input
                 type="email"
                 value={userData?.email}
@@ -405,28 +402,40 @@ export default function Settings() {
                 className="w-full p-2 border border-border rounded-md bg-background"
               />
             </div>
-            <Button onClick={handleUpdateProfile}>Update Profile</Button>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t("settings.address")}</label>
+              <textarea
+                value={userData?.address || ""}
+                onChange={(e) =>
+                  setUserData({ ...userData, address: e.target.value })
+                }
+                placeholder={t("settings.addressPlaceholder")}
+                rows={3}
+                className="w-full p-2 border border-border rounded-md bg-background resize-none"
+              />
+            </div>
+            <Button onClick={handleUpdateProfile}>{t("settings.updateProfile")}</Button>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Milk className="h-5 w-5 text-primary" />
-              Milk Rate Settings
+              {t("settings.milkRateSettings")}
             </CardTitle>
             <CardDescription>
-              Configure milk pricing and calculation formula
+              {t("settings.configureMilkPricing")}
             </CardDescription>
           </CardHeader>{" "}
           <CardContent className="space-y-4">
             {isLoadingMilkRates ? (
               <div className="text-center py-4">
-                Loading milk rate settings...
+                {t("settings.loadingMilkRateSettings")}
               </div>
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="fatRate">Fat Rate </Label>
+                  <Label htmlFor="fatRate">{t("settings.fatRate")} </Label>
                   <Input
                     id="fatRate"
                     type="number"
@@ -442,12 +451,12 @@ export default function Settings() {
                     placeholder="2.00"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Rate per percentage of fat content
+                    {t("settings.fatRateDescription")}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="snfRate">SNF Rate </Label>
+                  <Label htmlFor="snfRate">{t("settings.snfRate")} </Label>
                   <Input
                     id="snfRate"
                     type="number"
@@ -463,12 +472,12 @@ export default function Settings() {
                     placeholder="1.00"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Rate per percentage of SNF content
+                    {t("settings.snfRateDescription")}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="formulaType">Formula Type</Label>
+                  <Label htmlFor="formulaType">{t("settings.formulaType")}</Label>
                   <Select
                     value={milkRateSettings.formulaType}
                     onValueChange={(value: "fatOnly" | "fatSnf") =>
@@ -483,24 +492,24 @@ export default function Settings() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="fatOnly">
-                        Fat Only{" "}
+                        {t("settings.fatOnly")}{" "}
                         <small className="text-xs text-muted-foreground">
-                          ( fat * fat rate)
+                          {t("settings.fatOnlyDescription")}
                         </small>
                       </SelectItem>
                       <SelectItem value="fatSnf">
-                        Fat + SNF{" "}
+                        {t("settings.fatSnf")}{" "}
                         <small className="text-xs text-muted-foreground">
-                          ( fat * fat rate + snf * snf rate)
+                          {t("settings.fatSnfDescription")}
                         </small>
                       </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     {milkRateSettings.formulaType === "fatOnly" &&
-                      "Calculate rate based on fat percentage only"}
+                      t("settings.fatOnlyFormulaDescription")}
                     {milkRateSettings.formulaType === "fatSnf" &&
-                      "Calculate rate based on both fat and SNF percentages"}
+                      t("settings.fatSnfFormulaDescription")}
                   </p>
                 </div>
 
@@ -509,7 +518,7 @@ export default function Settings() {
                   disabled={isSavingMilkRates}
                   className="w-full"
                 >
-                  {isSavingMilkRates ? "Saving..." : "Save Milk Rate Settings"}
+                  {isSavingMilkRates ? t("settings.saving") : t("settings.saveMilkRateSettings")}
                 </Button>
               </>
             )}
@@ -519,9 +528,9 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
-              Security
+              {t("settings.securitySettings")}
             </CardTitle>
-            <CardDescription>Manage security settings</CardDescription>
+            <CardDescription>{t("settings.manageSecuritySettings")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button
@@ -529,18 +538,18 @@ export default function Settings() {
               className="w-full"
               onClick={() => setShowPasswordDialog(true)}
             >
-              Change Password
+              {t("settings.changePassword")}
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               className="w-full"
               onClick={() => setShowLoginHistoryDialog(true)}
             >
               <div className="flex items-center gap-2">
                 <History className="h-4 w-4" />
-                Login History
+                {t("settings.loginHistory")}
               </div>
-            </Button>
+            </Button> */}
           </CardContent>
         </Card>
 
@@ -619,12 +628,12 @@ export default function Settings() {
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
+            <DialogTitle>{t("settings.changePassword")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
+                <Label htmlFor="currentPassword">{t("settings.currentPassword")}</Label>
                 <div className="relative">
                   <Input
                     id="currentPassword"
@@ -636,7 +645,7 @@ export default function Settings() {
                         currentPassword: e.target.value,
                       }))
                     }
-                    placeholder="Enter current password"
+                    placeholder={t("settings.currentPasswordPlaceholder")}
                   />
                   <Button
                     type="button"
@@ -655,7 +664,7 @@ export default function Settings() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
+                <Label htmlFor="newPassword">{t("settings.newPassword")}</Label>
                 <div className="relative">
                   <Input
                     id="newPassword"
@@ -667,7 +676,7 @@ export default function Settings() {
                         newPassword: e.target.value,
                       }))
                     }
-                    placeholder="Enter new password"
+                    placeholder={t("settings.newPasswordPlaceholder")}
                   />
                   <Button
                     type="button"
@@ -684,12 +693,12 @@ export default function Settings() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Password must be at least 6 characters long
+                  {t("settings.passwordMinLength")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Label htmlFor="confirmPassword">{t("settings.confirmPassword")}</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
@@ -701,7 +710,7 @@ export default function Settings() {
                         confirmPassword: e.target.value,
                       }))
                     }
-                    placeholder="Confirm new password"
+                    placeholder={t("settings.confirmPasswordPlaceholder")}
                   />
                   <Button
                     type="button"
@@ -723,7 +732,7 @@ export default function Settings() {
             {/* Password Strength Indicator */}
             {passwordData.newPassword && (
               <div className="space-y-2">
-                <Label className="text-sm">Password Strength</Label>
+                <Label className="text-sm">{t("settings.passwordStrength")}</Label>
                 <div className="flex space-x-1">
                   <div
                     className={`h-2 w-full rounded ${
@@ -752,16 +761,16 @@ export default function Settings() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {passwordData.newPassword.length < 6
-                    ? "Weak"
+                    ? t("settings.weak")
                     : passwordData.newPassword.length >= 8 &&
                       /[A-Z]/.test(passwordData.newPassword) &&
                       /[0-9]/.test(passwordData.newPassword) &&
                       /[!@#$%^&*]/.test(passwordData.newPassword)
-                    ? "Very Strong"
+                    ? t("settings.veryStrong")
                     : passwordData.newPassword.length >= 8 &&
                       /[A-Z]/.test(passwordData.newPassword)
-                    ? "Strong"
-                    : "Medium"}
+                    ? t("settings.strong")
+                    : t("settings.medium")}
                 </p>
               </div>
             )}
@@ -771,7 +780,7 @@ export default function Settings() {
                 variant="outline"
                 onClick={() => setShowPasswordDialog(false)}
               >
-                Cancel
+                {t("settings.cancel")}
               </Button>
               <Button
                 onClick={handlePasswordChange}
@@ -781,7 +790,7 @@ export default function Settings() {
                   !passwordData.confirmPassword
                 }
               >
-                Change Password
+                {t("settings.changePassword")}
               </Button>
             </div>
           </div>
@@ -794,8 +803,8 @@ export default function Settings() {
           <DialogHeader>
             <DialogTitle>
               {twoFactorEnabled
-                ? "Disable Two-Factor Authentication"
-                : "Enable Two-Factor Authentication"}
+                ? t("settings.disable2FA")
+                : t("settings.enable2FA")}
             </DialogTitle>
           </DialogHeader>
 
@@ -811,18 +820,16 @@ export default function Settings() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-2">
-                        Install Authenticator App
+                        {t("settings.installAuthenticatorApp")}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Download and install an authenticator app like Google
-                        Authenticator, Microsoft Authenticator, or Authy on your
-                        mobile device.
+                        {t("settings.installAuthenticatorDescription")}
                       </p>
                     </div>
                   </div>
                   <div className="flex justify-end">
                     <Button onClick={() => setTwoFactorStep(2)}>
-                      Next Step
+                      {t("settings.nextStep")}
                     </Button>
                   </div>
                 </div>
@@ -837,13 +844,12 @@ export default function Settings() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-semibold mb-2">Scan QR Code</h3>
+                      <h3 className="font-semibold mb-2">{t("settings.scanQRCode")}</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Open your authenticator app and scan this QR code to add
-                        your account.
+                        {t("settings.scanQRDescription")}
                       </p>
                       <div className="bg-muted p-3 rounded text-sm">
-                        <p className="font-medium mb-1">Manual Entry Key:</p>
+                        <p className="font-medium mb-1">{t("settings.manualEntryKey")}</p>
                         <p className="font-mono text-xs break-all">
                           JBSWY3DPEHPK3PXP
                         </p>
@@ -855,10 +861,10 @@ export default function Settings() {
                       variant="outline"
                       onClick={() => setTwoFactorStep(1)}
                     >
-                      Back
+                      {t("settings.back")}
                     </Button>
                     <Button onClick={() => setTwoFactorStep(3)}>
-                      I've Added the Account
+                      {t("settings.iveAddedAccount")}
                     </Button>
                   </div>
                 </div>
@@ -874,17 +880,16 @@ export default function Settings() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-2">
-                        Enter Verification Code
+                        {t("settings.enterVerificationCode")}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Enter the 6-digit code from your authenticator app to
-                        complete setup.
+                        {t("settings.verificationCodeDescription")}
                       </p>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Verification Code</Label>
+                    <Label>{t("settings.verificationCode")}</Label>
                     <Input
                       type="text"
                       maxLength={6}
@@ -892,11 +897,11 @@ export default function Settings() {
                       onChange={(e) =>
                         setVerificationCode(e.target.value.replace(/\D/g, ""))
                       }
-                      placeholder="000000"
+                      placeholder={t("settings.verificationCodePlaceholder")}
                       className="text-center text-lg tracking-widest"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Use code: 123456 for demo
+                      {t("settings.useCodeForDemo")}
                     </p>
                   </div>
 
@@ -905,13 +910,13 @@ export default function Settings() {
                       variant="outline"
                       onClick={() => setTwoFactorStep(2)}
                     >
-                      Back
+                      {t("settings.back")}
                     </Button>
                     <Button
                       onClick={handleEnable2FA}
                       disabled={verificationCode.length !== 6}
                     >
-                      Enable 2FA
+                      {t("settings.enable2FA")}
                     </Button>
                   </div>
                 </div>
@@ -928,18 +933,16 @@ export default function Settings() {
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2 text-red-600">
-                    Disable Two-Factor Authentication
+                    {t("settings.disable2FA")}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Are you sure you want to disable 2FA? This will make your
-                    account less secure. Enter a verification code from your
-                    authenticator app to confirm.
+                    {t("settings.disable2FADescription")}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Verification Code</Label>
+                <Label>{t("settings.verificationCode")}</Label>
                 <Input
                   type="text"
                   maxLength={6}
@@ -947,11 +950,11 @@ export default function Settings() {
                   onChange={(e) =>
                     setVerificationCode(e.target.value.replace(/\D/g, ""))
                   }
-                  placeholder="000000"
+                  placeholder={t("settings.verificationCodePlaceholder")}
                   className="text-center text-lg tracking-widest"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use code: 123456 for demo
+                  {t("settings.useCodeForDemo")}
                 </p>
               </div>
 
@@ -960,14 +963,14 @@ export default function Settings() {
                   variant="outline"
                   onClick={() => setShow2FADialog(false)}
                 >
-                  Cancel
+                  {t("settings.cancel")}
                 </Button>
                 <Button
                   variant="destructive"
                   onClick={handleDisable2FA}
                   disabled={verificationCode.length !== 6}
                 >
-                  Disable 2FA
+                  {t("settings.disable2FA")}
                 </Button>
               </div>
             </div>

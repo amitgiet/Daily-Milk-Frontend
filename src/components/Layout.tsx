@@ -32,7 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
-import { canAccessRoute, getRoleName } from "@/lib/permissions";
+import { canAccessRoute, getRoleName, isSubscriptionActive } from "@/lib/permissions";
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -44,39 +44,54 @@ export default function Layout() {
   // Get user role
   const userRole = user?.roleId || 1;
 
-  // Define all navigation items
-  const allNavigation = [
-    { name: t("navigation.dashboard"), href: "/", icon: Home },
-    // { name: t('navigation.inventory'), href: "/inventory", icon: Package },
-    // { name: t('navigation.dairyRates'), href: "/dairy-rates", icon: Calculator },
-    // { name: t('navigation.orders'), href: "/orders", icon: ShoppingCart },
-    {
-      name: t("navigation.milkCollection"),
-      href: "/milk-collection",
-      icon: Milk,
-    },
-    { name: t("navigation.customers"), href: "/customers", icon: User },
-    // { name: t("navigation.reports"), href: "/reports", icon: BarChart3 },
-    {
-      name: "Users and Farmers",
-      href: "/dairy-listing",
-      icon: Building2,
-    },
-    {
-      name: t("navigation.subscriptionPlans"),
-      href: "/subscription-plans",
-      icon: CreditCard,
-    },
-    {
-      name: "Admin Plans",
-      href: "/admin-subscription-plans",
-      icon: CreditCard,
-    },
-    { name: t("navigation.settings"), href: "/settings", icon: Settings },
-  ];
+  // Check if user has active subscription
+  const hasActiveSubscription = hasSubscription || isSubscriptionActive(dairySubscription);
 
-  // Filter navigation based on user role and subscription
-  const navigation = allNavigation.filter(item => canAccessRoute(userRole, item.href, hasSubscription));
+  // Define navigation items based on subscription status
+  const getNavigationItems = () => {
+    // If user doesn't have subscription and is not admin, only show subscription plans
+    if (!hasActiveSubscription && userRole !== 1) { // 1 is ADMIN role
+      return [
+        {
+          name: t("navigation.subscriptionPlans"),
+          href: "/subscription-plans",
+          icon: CreditCard,
+        },
+      ];
+    }
+
+    // If user has subscription or is admin, show all available navigation
+    const allNavigation = [
+      { name: t("navigation.dashboard"), href: "/", icon: Home },
+      {
+        name: t("navigation.milkCollection"),
+        href: "/milk-collection",
+        icon: Milk,
+      },
+      { name: t("navigation.customers"), href: "/customers", icon: User },
+      {
+        name: "Users and Farmers",
+        href: "/dairy-listing",
+        icon: Building2,
+      },
+      {
+        name: t("navigation.subscriptionPlans"),
+        href: "/subscription-plans",
+        icon: CreditCard,
+      },
+      {
+        name: "Admin Plans",
+        href: "/admin-subscription-plans",
+        icon: CreditCard,
+      },
+      { name: t("navigation.settings"), href: "/settings", icon: Settings },
+    ];
+
+    // Filter navigation based on user role and subscription
+    return allNavigation.filter(item => canAccessRoute(userRole, item.href, hasActiveSubscription));
+  };
+
+  const navigation = getNavigationItems();
 
   const handleLogout = async () => {
     await logout();
@@ -114,6 +129,22 @@ export default function Layout() {
               <X className="h-5 w-5" />
             </Button>
           </div>
+          {/* Subscription Status Indicator */}
+          {!hasActiveSubscription && userRole !== 1 && (
+            <div className="px-4 pb-4">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="text-sm font-medium text-destructive">
+                    Subscription Required
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Please subscribe to access all features
+                </p>
+              </div>
+            </div>
+          )}
           <nav className="px-4 space-y-2">
             {navigation.map((item) => (
               <NavLink
@@ -148,6 +179,22 @@ export default function Layout() {
               </span>
             </div>
           </div>
+          {/* Subscription Status Indicator for Desktop */}
+          {!hasActiveSubscription && userRole !== 1 && (
+            <div className="px-6 pb-4">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="text-sm font-medium text-destructive">
+                    Subscription Required
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Please subscribe to access all features
+                </p>
+              </div>
+            </div>
+          )}
           <nav className="flex flex-1 flex-col px-6 py-4">
             <ul role="list" className="flex flex-1 flex-col gap-y-2">
               {navigation.map((item) => (
@@ -226,12 +273,12 @@ export default function Layout() {
                     <p className="text-xs text-muted-foreground mt-1">
                       Role: {getRoleName(userRole)}
                     </p>
-                    {hasSubscription && dairySubscription && (
+                    {hasActiveSubscription && (
                       <p className="text-xs text-muted-foreground mt-1">
                         Subscription: Active
                       </p>
                     )}
-                    {!hasSubscription && (
+                    {!hasActiveSubscription && (
                       <p className="text-xs text-muted-foreground mt-1 text-destructive">
                         <AlertTriangle className="mr-1 h-3 w-3" />
                         No active subscription

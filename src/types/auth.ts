@@ -8,6 +8,7 @@ export interface User {
   username?: string | null;
   isActive?: boolean;
   profilePicture?: string | null;
+  address?: string | null;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;

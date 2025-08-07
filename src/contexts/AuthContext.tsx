@@ -43,16 +43,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+    const storedUser = localStorage.getItem('user');
+    const storedSubscription = localStorage.getItem('hasSubscription');
+    const storedDairySubscription = localStorage.getItem('dairySubscription');
     
     console.log('🔐 AuthContext initialization:', {
       hasToken: !!token,
       isAuth,
+      hasStoredUser: !!storedUser,
+      hasStoredSubscription: !!storedSubscription,
       timestamp: new Date().toISOString()
     });
     
     if (token && isAuth) {
       setIsAuthenticated(true);
-      // Skip refresh token, just set loading to false
+      
+      // Restore user data if available
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+        }
+      }
+      
+      // Restore subscription data if available
+      if (storedSubscription) {
+        try {
+          const subscription = JSON.parse(storedSubscription);
+          setHasSubscription(subscription);
+        } catch (error) {
+          console.error('Error parsing stored subscription data:', error);
+          setHasSubscription(false);
+        }
+      }
+      
+      if (storedDairySubscription) {
+        try {
+          const dairySubscription = JSON.parse(storedDairySubscription);
+          setDairySubscription(dairySubscription);
+        } catch (error) {
+          console.error('Error parsing stored dairy subscription data:', error);
+          setDairySubscription(null);
+        }
+      }
+      
       setIsLoading(false);
       console.log('🔐 AuthContext: User authenticated from localStorage');
     } else {
@@ -74,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (phone: string, password: string): Promise<boolean> => {
     try {
       console.log('Login attempt for phone:', phone);
-      const response = await apiCall(allRoutes.auth.login, 'post', { phone, password }) as ApiResponse<LoginResponse>;
+      const response = await apiCall(allRoutes.auth.login, 'post', { phone, password });
       console.log('Login response:', response);
       
       if (response.success && response.data?.accessToken) {
@@ -85,10 +121,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Set user with roleId
         const userData = response.data.user || { id: 0, name: '', phone, dairyId: 0, roleId: 1 };
         setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
         
-        // Set subscription information
-        setHasSubscription(response.data.subscription || false);
-        setDairySubscription(response.data.DairySubscription || null);
+        // Set subscription information - handle both response structures
+        const subscription = response.data.subscription || false;
+        const dairySubscription = response.data.DairySubscription || null;
+        
+        console.log('Setting subscription data:', { subscription, dairySubscription });
+        
+        setHasSubscription(subscription);
+        setDairySubscription(dairySubscription);
+        
+        // Store subscription data in localStorage
+        localStorage.setItem('hasSubscription', JSON.stringify(subscription));
+        localStorage.setItem('dairySubscription', JSON.stringify(dairySubscription));
         
         setIsAuthenticated(true);
         console.log('Login completed, returning true');
@@ -117,10 +163,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Set user with roleId
         const userData = response.data.user || { id: 0, name, phone, dairyId: 0, roleId: 1 };
         setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
         
         // Set subscription information (new users don't have subscription)
         setHasSubscription(false);
         setDairySubscription(null);
+        
+        // Store subscription data in localStorage
+        localStorage.setItem('hasSubscription', JSON.stringify(false));
+        localStorage.setItem('dairySubscription', JSON.stringify(null));
         
         setIsAuthenticated(true);
         return true;
@@ -142,8 +193,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear local storage and state regardless of API call success
       localStorage.removeItem('authToken');
       localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('user');
+      localStorage.removeItem('hasSubscription');
+      localStorage.removeItem('dairySubscription');
+      
       setUser(null);
       setIsAuthenticated(false);
+      setHasSubscription(false);
+      setDairySubscription(null);
     }
   };
 
