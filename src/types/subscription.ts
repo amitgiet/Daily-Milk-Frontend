@@ -3,7 +3,7 @@ export interface SubscriptionPlan {
   name: string;
   durationDays: number;
   price: number | string;
-  features: string[] | null;
+  features: string[] | string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

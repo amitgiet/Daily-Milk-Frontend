@@ -29,6 +29,8 @@ interface Farmer {
   email?: string;
   address?: string;
   dairyId: number;
+  isActive?: boolean;
+  currentMonthMilkAmount?: string;
   status?: 'active' | 'inactive';
   createdAt?: string;
   updatedAt?: string;
@@ -100,34 +102,41 @@ const DairyListing: React.FC = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getStatusBadge = (status?: string) => {
-    if (status === 'active') {
-      return <Badge variant="default" className="bg-green-100 text-green-800">Active</Badge>;
+  const formatMilkAmount = (amount?: string) => {
+    if (!amount) return '0.00 L';
+    const numAmount = parseFloat(amount);
+    return `${numAmount.toFixed(2)} L`;
+  };
+
+  const getStatusBadge = (status?: string | boolean) => {
+    const isActive = typeof status === 'boolean' ? status : status === 'active';
+    if (isActive) {
+      return <Badge variant="default" className="bg-green-100 text-green-800">{t('dairyListing.active')}</Badge>;
     }
-    return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inactive</Badge>;
+    return <Badge variant="secondary" className="bg-gray-100 text-gray-800">{t('dairyListing.inactive')}</Badge>;
   };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">
-          {activeTab === 'dairies' ? 'Dairy Management' : 'Farmer Management'}
+          {activeTab === 'dairies' ? t('dairyListing.title') : t('dairyListing.farmerManagement')}
         </h1>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          Add {activeTab === 'dairies' ? 'Dairy' : 'Farmer'}
+          {activeTab === 'dairies' ? t('dairyListing.addDairy') : t('dairyListing.addFarmer')}
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Listing</CardTitle>
+          <CardTitle>{t('dairyListing.listing')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="dairies">Dairy Listing</TabsTrigger>
-              <TabsTrigger value="farmers">Customer Listing</TabsTrigger>
+              <TabsTrigger value="dairies">{t('dairyListing.dairyListing')}</TabsTrigger>
+              <TabsTrigger value="farmers">{t('dairyListing.farmerListing')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dairies" className="space-y-4">
@@ -135,7 +144,7 @@ const DairyListing: React.FC = () => {
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search dairies..."
+                    placeholder={t('dairyListing.searchDairies')}
                     value={searchTerm}
                     onChange={(e) => handleSearch(e.target.value)}
                     className="pl-8"
@@ -144,26 +153,24 @@ const DairyListing: React.FC = () => {
               </div>
 
               {dairiesLoading ? (
-                <div className="text-center py-8">Loading dairies...</div>
+                <div className="text-center py-8">{t('dairyListing.loadingDairies')}</div>
               ) : (
                 <>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        {/* <TableHead>Status</TableHead> */}
-                        <TableHead>Created At</TableHead>
-                        {/* <TableHead>Actions</TableHead> */}
+                        <TableHead>{t('dairyListing.id')}</TableHead>
+                        <TableHead>{t('dairyListing.name')}</TableHead>
+                        <TableHead>{t('dairyListing.email')}</TableHead>
+                        <TableHead>{t('dairyListing.phone')}</TableHead>
+                        <TableHead>{t('dairyListing.createdAt')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {dairies.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8">
-                            No dairies found
+                          <TableCell colSpan={5} className="text-center py-8">
+                            {t('dairyListing.noDairiesFound')}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -173,21 +180,7 @@ const DairyListing: React.FC = () => {
                             <TableCell className="font-medium">{dairy.name}</TableCell>
                             <TableCell>{dairy.email}</TableCell>
                             <TableCell>{dairy.phone}</TableCell>
-                            {/* <TableCell>{getStatusBadge(dairy.status)}</TableCell> */}
                             <TableCell>{formatDate(dairy.createdAt)}</TableCell>
-                            {/* <TableCell>
-                              <div className="flex items-center space-x-2">
-                                <Button variant="ghost" size="sm">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell> */}
                           </TableRow>
                         ))
                       )}
@@ -197,7 +190,7 @@ const DairyListing: React.FC = () => {
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-muted-foreground">
-                        Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, dairiesTotal)} of {dairiesTotal} dairies
+                        {t('dairyListing.showing')} {((currentPage - 1) * limit) + 1} {t('dairyListing.to')} {Math.min(currentPage * limit, dairiesTotal)} {t('dairyListing.of')} {dairiesTotal} {t('dairyListing.dairies')}
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button
@@ -206,10 +199,10 @@ const DairyListing: React.FC = () => {
                           onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
                         >
-                          Previous
+                          {t('dairyListing.previous')}
                         </Button>
                         <span className="text-sm">
-                          Page {currentPage} of {totalPages}
+                          {t('dairyListing.page')} {currentPage} {t('dairyListing.of')} {totalPages}
                         </span>
                         <Button
                           variant="outline"
@@ -217,7 +210,7 @@ const DairyListing: React.FC = () => {
                           onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === totalPages}
                         >
-                          Next
+                          {t('dairyListing.next')}
                         </Button>
                       </div>
                     </div>
@@ -231,7 +224,7 @@ const DairyListing: React.FC = () => {
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search farmers..."
+                    placeholder={t('dairyListing.searchFarmers')}
                     value={searchTerm}
                     onChange={(e) => handleSearch(e.target.value)}
                     className="pl-8"
@@ -240,27 +233,28 @@ const DairyListing: React.FC = () => {
               </div>
 
               {farmersLoading ? (
-                <div className="text-center py-8">Loading farmers...</div>
+                <div className="text-center py-8">{t('dairyListing.loadingFarmers')}</div>
               ) : (
                 <>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Dairy ID</TableHead>
-                        {/* <TableHead>Status</TableHead> */}
-                        <TableHead>Created At</TableHead>
-                        {/* <TableHead>Actions</TableHead> */}
+                        <TableHead>{t('dairyListing.id')}</TableHead>
+                        <TableHead>{t('dairyListing.name')}</TableHead>
+                        <TableHead>{t('dairyListing.phone')}</TableHead>
+                        <TableHead>{t('dairyListing.email')}</TableHead>
+                        <TableHead>{t('dairyListing.dairyId')}</TableHead>
+                        <TableHead>{t('dairyListing.status')}</TableHead>
+                        <TableHead>{t('dairyListing.currentMonthMilk')}</TableHead>
+                        <TableHead>{t('dairyListing.createdAt')}</TableHead>
+                        <TableHead>{t('dairyListing.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {farmers.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
-                            No farmers found
+                          <TableCell colSpan={9} className="text-center py-8">
+                            {t('dairyListing.noFarmersFound')}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -271,21 +265,24 @@ const DairyListing: React.FC = () => {
                             <TableCell>{farmer.phone}</TableCell>
                             <TableCell>{farmer.email || '-'}</TableCell>
                             <TableCell>{farmer.dairyId}</TableCell>
-                            {/* <TableCell>{getStatusBadge(farmer.status)}</TableCell> */}
+                            <TableCell>{getStatusBadge(farmer.isActive)}</TableCell>
+                            <TableCell className="font-medium">
+                              {formatMilkAmount(farmer.currentMonthMilkAmount)}
+                            </TableCell>
                             <TableCell>{formatDate(farmer.createdAt)}</TableCell>
-                            {/* <TableCell>
+                            <TableCell>
                               <div className="flex items-center space-x-2">
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" title={t('dairyListing.view')}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" title={t('dairyListing.edit')}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" title={t('dairyListing.delete')}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
-                            </TableCell> */}
+                            </TableCell>
                           </TableRow>
                         ))
                       )}
@@ -295,7 +292,7 @@ const DairyListing: React.FC = () => {
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-muted-foreground">
-                        Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, farmersTotal)} of {farmersTotal} farmers
+                        {t('dairyListing.showing')} {((currentPage - 1) * limit) + 1} {t('dairyListing.to')} {Math.min(currentPage * limit, farmersTotal)} {t('dairyListing.of')} {farmersTotal} {t('dairyListing.farmers')}
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button
@@ -304,10 +301,10 @@ const DairyListing: React.FC = () => {
                           onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
                         >
-                          Previous
+                          {t('dairyListing.previous')}
                         </Button>
                         <span className="text-sm">
-                          Page {currentPage} of {totalPages}
+                          {t('dairyListing.page')} {currentPage} {t('dairyListing.of')} {totalPages}
                         </span>
                         <Button
                           variant="outline"
@@ -315,7 +312,7 @@ const DairyListing: React.FC = () => {
                           onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === totalPages}
                         >
-                          Next
+                          {t('dairyListing.next')}
                         </Button>
                       </div>
                     </div>

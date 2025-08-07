@@ -28,10 +28,6 @@ export const apiCall = async (
   retryCount = 0
 ) => {
   try {
-    console.log('API Call:', method, url, data);
-    console.log('Base URL:', api.defaults.baseURL);
-    console.log('Retry attempt:', retryCount);
-    
     const isFormData = data instanceof FormData;
 
     // Build headers safely
@@ -48,7 +44,6 @@ export const apiCall = async (
             headers: finalHeaders,
           });
 
-    console.log('API Response:', response);
     return { success: true, data: response.data };
   } catch (error: unknown) {
     const axiosError = error as { 

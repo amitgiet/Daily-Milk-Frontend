@@ -91,13 +91,16 @@ const MilkCollection: React.FC = () => {
     data: milkData,
     loading: milkLoading,
     execute: fetchMilk,
-  } = useQuery(() => {
-    // Use the permissions hook to get the correct API endpoint
-    const filterParams = getFarmerFilterParams();
-    return apiCall(`${allRoutes.milkCollection.list}${filterParams}`, "get");
-  }, {
-    autoExecute: true,
-  });
+  } = useQuery(
+    () => {
+      // Use the permissions hook to get the correct API endpoint
+      const filterParams = getFarmerFilterParams();
+      return apiCall(`${allRoutes.milkCollection.list}${filterParams}`, "get");
+    },
+    {
+      autoExecute: true,
+    }
+  );
 
   // Collect milk mutation (only for admin/dairy)
   const { execute: collectMilk, loading: collectingMilk } = useMutation(
@@ -143,20 +146,22 @@ const MilkCollection: React.FC = () => {
 
   const calculateRate = (fatValue: number, snfValue: number) => {
     // Get rate settings from localStorage or use defaults
-    const rateSettings = JSON.parse(localStorage.getItem('milkRateSettings') || '{}');
-    const fatRate = parseFloat(rateSettings.fatRate || '2.00');
-    const snfRate = parseFloat(rateSettings.snfRate || '1.00');
-    const formulaType = rateSettings.formulaType || 'fatOnly';
-    
+    const rateSettings = JSON.parse(
+      localStorage.getItem("milkRateSettings") || "{}"
+    );
+    const fatRate = parseFloat(rateSettings.fatRate || "2.00");
+    const snfRate = parseFloat(rateSettings.snfRate || "1.00");
+    const formulaType = rateSettings.formulaType || "fatOnly";
+
     const baseRate = 50; // Base rate per liter
-    
+
     switch (formulaType) {
-      case 'fatOnly':
-        return baseRate + (fatValue * fatRate);
-      case 'fatSnf':
-        return baseRate + (fatValue * fatRate) + (snfValue * snfRate);
+      case "fatOnly":
+        return baseRate + fatValue * fatRate;
+      case "fatSnf":
+        return baseRate + fatValue * fatRate + snfValue * snfRate;
       default:
-        return baseRate + (fatValue * fatRate);
+        return baseRate + fatValue * fatRate;
     }
   };
 
@@ -189,13 +194,13 @@ const MilkCollection: React.FC = () => {
 
   const handleEdit = (entry: MilkEntry) => {
     if (!canManageMilk) return; // Only admin/dairy can edit
-    
+
     setIsEditMode(true);
     setEditingEntry(entry);
     setSelectedFarmer(entry.farmerId.toString());
-    setFat(entry.fat?.toString() || '');
-    setSnf(entry.snf?.toString() || '');
-    setQuantity(entry.quantity?.toString() || '');
+    setFat(entry.fat?.toString() || "");
+    setSnf(entry.snf?.toString() || "");
+    setQuantity(entry.quantity?.toString() || "");
     setShift(entry.shift);
     setDate(entry.date);
   };
@@ -255,7 +260,9 @@ const MilkCollection: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="farmer">{t("milkCollection.farmerName")}</Label>
+                  <Label htmlFor="farmer">
+                    {t("milkCollection.farmerName")}
+                  </Label>
                   <Select
                     value={selectedFarmer}
                     onValueChange={setSelectedFarmer}
@@ -268,7 +275,10 @@ const MilkCollection: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {farmers.map((farmer) => (
-                        <SelectItem key={farmer.id} value={farmer.id.toString()}>
+                        <SelectItem
+                          key={farmer.id}
+                          value={farmer.id.toString()}
+                        >
                           {farmer.name}
                         </SelectItem>
                       ))}
@@ -276,6 +286,45 @@ const MilkCollection: React.FC = () => {
                   </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="fat">{t("milkCollection.fat")}</Label>
+                  <Input
+                    id="fat"
+                    type="number"
+                    step="0.1"
+                    value={fat}
+                    onChange={(e) => setFat(e.target.value)}
+                    placeholder="0.0"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">
+                    {t("milkCollection.quantity")}
+                  </Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    step="0.1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    placeholder="0.0"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="snf">{t("milkCollection.snf")}</Label>
+                  <Input
+                    id="snf"
+                    type="number"
+                    step="0.1"
+                    value={snf}
+                    onChange={(e) => setSnf(e.target.value)}
+                    placeholder="0.0"
+                    required
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="date">{t("milkCollection.date")}</Label>
                   <Input
@@ -308,51 +357,13 @@ const MilkCollection: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="fat">{t("milkCollection.fat")}</Label>
-                  <Input
-                    id="fat"
-                    type="number"
-                    step="0.1"
-                    value={fat}
-                    onChange={(e) => setFat(e.target.value)}
-                    placeholder="0.0"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="snf">{t("milkCollection.snf")}</Label>
-                  <Input
-                    id="snf"
-                    type="number"
-                    step="0.1"
-                    value={snf}
-                    onChange={(e) => setSnf(e.target.value)}
-                    placeholder="0.0"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">
-                    {t("milkCollection.quantity")} 
-                  </Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    step="0.1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="0.0"
-                    required
-                  />
-                </div>
               </div>
 
               <div className="flex gap-2">
-                <Button type="submit" disabled={collectingMilk || updatingMilk || loading}>
+                <Button
+                  type="submit"
+                  disabled={collectingMilk || updatingMilk || loading}
+                >
                   {collectingMilk || updatingMilk
                     ? t("common.loading")
                     : isEditMode
@@ -380,7 +391,9 @@ const MilkCollection: React.FC = () => {
           <CardContent className="p-4">
             <div className="text-2xl font-bold">{totalLiters.toFixed(1)} L</div>
             <div className="text-sm text-muted-foreground">
-              {isFarmerUser ? t("milkCollection.myTotalLiters") : t("milkCollection.totalLiters")}
+              {isFarmerUser
+                ? t("milkCollection.myTotalLiters")
+                : t("milkCollection.totalLiters")}
             </div>
           </CardContent>
         </Card>
@@ -388,7 +401,9 @@ const MilkCollection: React.FC = () => {
           <CardContent className="p-4">
             <div className="text-2xl font-bold">₹{totalAmount.toFixed(2)}</div>
             <div className="text-sm text-muted-foreground">
-              {isFarmerUser ? t("milkCollection.myTotalAmount") : t("milkCollection.totalAmount")}
+              {isFarmerUser
+                ? t("milkCollection.myTotalAmount")
+                : t("milkCollection.totalAmount")}
             </div>
           </CardContent>
         </Card>
@@ -396,7 +411,9 @@ const MilkCollection: React.FC = () => {
           <CardContent className="p-4">
             <div className="text-2xl font-bold">{totalFarmers}</div>
             <div className="text-sm text-muted-foreground">
-              {isFarmerUser ? t("milkCollection.myCollections") : t("milkCollection.totalFarmers")}
+              {isFarmerUser
+                ? t("milkCollection.myCollections")
+                : t("milkCollection.totalFarmers")}
             </div>
           </CardContent>
         </Card>
@@ -404,7 +421,9 @@ const MilkCollection: React.FC = () => {
           <CardContent className="p-4">
             <div className="text-2xl font-bold">{averageFat.toFixed(1)}%</div>
             <div className="text-sm text-muted-foreground">
-              {isFarmerUser ? t("milkCollection.myAverageFat") : t("milkCollection.averageFat")}
+              {isFarmerUser
+                ? t("milkCollection.myAverageFat")
+                : t("milkCollection.averageFat")}
             </div>
           </CardContent>
         </Card>
@@ -414,7 +433,9 @@ const MilkCollection: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>
-            {isFarmerUser ? t("milkCollection.myCollectionList") : t("milkCollection.dailyList")}
+            {isFarmerUser
+              ? t("milkCollection.myCollectionList")
+              : t("milkCollection.dailyList")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -422,13 +443,17 @@ const MilkCollection: React.FC = () => {
             <div className="text-center py-4">{t("common.loading")}</div>
           ) : milkEntries.length === 0 ? (
             <div className="text-center py-4 text-muted-foreground">
-              {isFarmerUser ? t("milkCollection.noMyEntries") : t("milkCollection.noEntries")}
+              {isFarmerUser
+                ? t("milkCollection.noMyEntries")
+                : t("milkCollection.noEntries")}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  {!isFarmerUser && <TableHead>{t("milkCollection.farmerName")}</TableHead>}
+                  {!isFarmerUser && (
+                    <TableHead>{t("milkCollection.farmerName")}</TableHead>
+                  )}
                   <TableHead>{t("milkCollection.date")}</TableHead>
                   <TableHead>{t("milkCollection.shift")}</TableHead>
                   <TableHead>{t("milkCollection.fat")} </TableHead>
@@ -436,7 +461,9 @@ const MilkCollection: React.FC = () => {
                   <TableHead>{t("milkCollection.quantity")} </TableHead>
                   <TableHead>{t("milkCollection.rate")} </TableHead>
                   <TableHead>{t("milkCollection.totalAmount")} (₹)</TableHead>
-                  {canManageMilk && <TableHead>{t("common.actions")}</TableHead>}
+                  {canManageMilk && (
+                    <TableHead>{t("common.actions")}</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -12,52 +12,55 @@ import {
   AlertTriangle,
   Milk,
   Clock,
-  CalendarDays
+  CalendarDays,
+  Building2,
+  RefreshCw
 } from "lucide-react";
 import dairyHero from "@/assets/dairy-hero.jpg";
 import { useQuery } from "@/hooks/useApi";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
-
-const recentOrders = [
-  { id: "ORD-001", customer: "Raj Dairy Store", items: "100L Milk, 5kg Paneer", status: "pending", time: "2 hours ago" },
-  { id: "ORD-002", customer: "Fresh Mart", items: "50L Milk, 2kg Curd", status: "delivered", time: "4 hours ago" },
-  { id: "ORD-003", customer: "City Grocers", items: "200L Milk", status: "processing", time: "6 hours ago" },
-];
-
-const lowStockItems = [
-  { name: "Paneer", current: 5, minimum: 10, unit: "kg" },
-  { name: "Ghee", current: 8, minimum: 15, unit: "kg" },
-  { name: "Curd", current: 12, minimum: 20, unit: "kg" },
-];
-
-const todayMilkCollection = [
-  { supplier: "Green Valley Farm", morning: 500, evening: 450, total: 950 },
-  { supplier: "Sunrise Dairy", morning: 300, evening: 280, total: 580 },
-  { supplier: "Hill View Ranch", morning: 200, evening: 180, total: 380 },
-];
+import { DashboardStats } from "@/types/dashboard";
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  // Example of using API hooks
-  // const { data: dashboardStats, loading: statsLoading, error: statsError } = useQuery(
-  //   () => apiCall(allRoutes.dashboard.getStats, 'get'),
-  //   {
-  //     autoExecute: true,
-  //     onError: (error) => {
-  //       console.error('Failed to load dashboard stats:', error);
-  //     }
-  //   }
-  // );
+  // Fetch dashboard stats
+  const { 
+    data: dashboardStats, 
+    loading: statsLoading, 
+    error: statsError,
+    execute: fetchStats 
+  } = useQuery(
+    () => apiCall(allRoutes.dashboard.stats, 'get'),
+    {
+      autoExecute: true,
+      onError: (error) => {
+        console.error('Failed to load dashboard stats:', error);
+      }
+    }
+  );
 
-  // const { data: lowStockAlerts, loading: alertsLoading } = useQuery(
-  //   () => apiCall(allRoutes.dashboard.getLowStockAlerts, 'get'),
-  //   {
-  //     autoExecute: true
-  //   }
-  // );
+  // Extract stats from API response
+  const stats: DashboardStats = dashboardStats?.data?.data || {};
+  
+  // Format currency values
+  const formatCurrency = (amount?: number) => {
+    if (!amount) return '₹0';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Format numbers with commas
+  const formatNumber = (num?: number) => {
+    if (!num) return '0';
+    return new Intl.NumberFormat('en-IN').format(num);
+  };
 
   const handleAddNewProduct = () => {
     navigate('/inventory');
@@ -75,6 +78,10 @@ export default function Dashboard() {
 
   const handleViewOrderDetails = () => {
     navigate('/orders');
+  };
+
+  const handleRefreshStats = () => {
+    fetchStats();
   };
 
   return (
@@ -96,23 +103,33 @@ export default function Dashboard() {
             {t('dashboard.welcomeDescription')}
           </p>
           <div className="flex flex-wrap gap-3">
-            <Button variant="secondary" size="lg" onClick={handleAddNewProduct}>
-              <Package className="h-5 w-5 mr-2" />
-              {t('dashboard.addNewProduct')}
-            </Button>
-            <Button variant="outline" size="lg" className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground hover:text-primary" onClick={handleDailyReport}>
-              <CalendarDays className="h-5 w-5 mr-2" />
-              {t('dashboard.dailyReport')}
-            </Button>
+            {statsError && (
+              <Button variant="outline" size="lg" className="border-red-200 text-red-200 hover:bg-red-200 hover:text-red-800" onClick={handleRefreshStats}>
+                <RefreshCw className="h-5 w-5 mr-2" />
+                {t('common.refresh')}
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Error Display */}
+      {statsError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-800">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="font-medium">{t('common.error')}: Failed to load dashboard statistics</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title={t('dashboard.totalProducts')}
-          value="247"
+          value={statsLoading ? "..." : formatNumber(stats.totalProducts)}
           change={t('dashboard.thisWeek')}
           changeType="positive"
           icon={Package}
@@ -121,18 +138,28 @@ export default function Dashboard() {
 
         <StatsCard
           title={t('dashboard.ordersToday')}
-          value="43"
+          value={statsLoading ? "..." : formatNumber(stats.todayOrders)}
           change={t('dashboard.fromYesterday')}
           changeType="positive"
           icon={ShoppingCart}
           gradient
         />
+
         <StatsCard
           title={t('dashboard.revenueToday')}
-          value="₹25,480"
+          value={statsLoading ? "..." : formatCurrency(stats.todayRevenue)}
           change="+15.3%"
           changeType="positive"
           icon={TrendingUp}
+          gradient
+        />
+
+        <StatsCard
+          title={t('dashboard.todayMilkCollection')}
+          value={statsLoading ? "..." : `${formatNumber(stats.todayMilkCollection)}L`}
+          change={t('dashboard.fromYesterday')}
+          changeType="positive"
+          icon={Milk}
           gradient
         />
       </div>
@@ -150,30 +177,38 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {todayMilkCollection.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                  <div>
-                    <p className="font-medium text-foreground">{item.supplier}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {t('dashboard.morning')}: {item.morning}L • {t('dashboard.evening')}: {item.evening}L
-                    </p>
+            {statsLoading ? (
+              <div className="text-center py-8">{t('common.loading')}</div>
+            ) : stats.todayMilkCollectionDetails && stats.todayMilkCollectionDetails.length > 0 ? (
+              <div className="space-y-4">
+                {stats.todayMilkCollectionDetails.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                    <div>
+                      <p className="font-medium text-foreground">{item.supplier}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t('dashboard.morning')}: {item.morning}L • {t('dashboard.evening')}: {item.evening}L
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-primary">{item.total}L</p>
+                      <p className="text-sm text-muted-foreground">{t('dashboard.total')}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-primary">{item.total}L</p>
-                    <p className="text-sm text-muted-foreground">{t('dashboard.total')}</p>
+                ))}
+                <div className="pt-4 border-t border-border">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-foreground">{t('dashboard.totalCollection')}:</span>
+                    <span className="text-xl font-bold text-primary">
+                      {stats.todayMilkCollectionDetails.reduce((sum, item) => sum + item.total, 0)}L
+                    </span>
                   </div>
-                </div>
-              ))}
-              <div className="pt-4 border-t border-border">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-foreground">{t('dashboard.totalCollection')}:</span>
-                  <span className="text-xl font-bold text-primary">
-                    {todayMilkCollection.reduce((sum, item) => sum + item.total, 0)}L
-                  </span>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {t('dashboard.noMilkCollectionToday')}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -189,24 +224,32 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {lowStockItems.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-warning/10 border border-warning/20">
-                  <div>
-                    <p className="font-medium text-foreground">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {t('dashboard.min')}: {item.minimum} {item.unit}
-                    </p>
+            {statsLoading ? (
+              <div className="text-center py-8">{t('common.loading')}</div>
+            ) : stats.lowStockAlerts && stats.lowStockAlerts.length > 0 ? (
+              <div className="space-y-3">
+                {stats.lowStockAlerts.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-warning/10 border border-warning/20">
+                    <div>
+                      <p className="font-medium text-foreground">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t('dashboard.min')}: {item.minimum} {item.unit}
+                      </p>
+                    </div>
+                    <Badge variant="destructive">
+                      {item.current} {item.unit}
+                    </Badge>
                   </div>
-                  <Badge variant="destructive">
-                    {item.current} {item.unit}
-                  </Badge>
-                </div>
-              ))}
-              <Button className="w-full mt-4" variant="outline" onClick={() => navigate('/inventory')}>
-                {t('dashboard.viewAllStock')}
-              </Button>
-            </div>
+                ))}
+                <Button className="w-full mt-4" variant="outline" onClick={() => navigate('/inventory')}>
+                  {t('dashboard.viewAllStock')}
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {t('dashboard.noLowStockItems')}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -223,33 +266,44 @@ export default function Dashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <p className="font-medium text-foreground">{order.id}</p>
-                    <Badge 
-                      variant={
-                        order.status === "delivered" ? "default" :
-                        order.status === "processing" ? "secondary" : "outline"
-                      }
-                    >
-                      {t(`orders.${order.status}`)}
-                    </Badge>
+          {statsLoading ? (
+            <div className="text-center py-8">{t('common.loading')}</div>
+          ) : stats.recentOrders && stats.recentOrders.length > 0 ? (
+            <div className="space-y-4">
+              {stats.recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <p className="font-medium text-foreground">{order.id}</p>
+                      <Badge 
+                        variant={
+                          order.status === "delivered" ? "default" :
+                          order.status === "processing" ? "secondary" : "outline"
+                        }
+                      >
+                        {t(`orders.${order.status}`)}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{order.customer}</p>
+                    <p className="text-sm text-foreground">{order.items}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{order.customer}</p>
-                  <p className="text-sm text-foreground">{order.items}</p>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">{order.time}</p>
+                    {order.total && (
+                      <p className="text-sm font-medium text-foreground">{formatCurrency(order.total)}</p>
+                    )}
+                    <Button variant="ghost" size="sm" className="mt-1" onClick={handleViewOrderDetails}>
+                      {t('dashboard.viewDetails')}
+                    </Button>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">{order.time}</p>
-                  <Button variant="ghost" size="sm" className="mt-1" onClick={handleViewOrderDetails}>
-                    {t('dashboard.viewDetails')}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              {t('dashboard.noRecentOrders')}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

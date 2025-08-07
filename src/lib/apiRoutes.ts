@@ -32,7 +32,7 @@ export const allRoutes = {
     adjustStock: (id: string | number) => `/admin/inventory/${id}/adjust-stock`
   },
   dashboard: {
-    stats: '/admin/dashboard/stats',
+    stats: '/admin/dashboard-stats',
     lowStockAlerts: '/admin/dashboard/low-stock-alerts',
     recentActivity: '/admin/dashboard/recent-activity'
   },

@@ -14,12 +14,7 @@ import {
   Phone,
   Mail,
   MapPin,
-  CreditCard,
-  CalendarIcon,
   Milk,
-  DollarSign,
-  TrendingUp,
-  History,
   Edit,
   Trash2,
 } from "lucide-react";
@@ -59,8 +54,6 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { ApiResponse } from "@/types/auth";
@@ -86,6 +79,7 @@ interface Farmer {
   email?: string;
   address?: string;
   dairyId: number;
+  currentMonthMilkAmount?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -93,7 +87,10 @@ interface Farmer {
 // Farmer form schema based on API requirements
 const farmerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits").max(15, "Phone number too long")
+  phone: z
+    .string()
+    .min(10, "Phone number must be at least 10 digits")
+    .max(15, "Phone number too long"),
 });
 
 type FarmerFormData = z.infer<typeof farmerSchema>;
@@ -124,9 +121,14 @@ export default function Customers() {
   const fetchFarmers = async () => {
     setLoading(true);
     try {
-      const response = await apiCall(allRoutes.farmers.getFarmers, "get") as ApiResponse<{ data: Farmer[] }>;
+      const response = (await apiCall(
+        allRoutes.farmers.getFarmers,
+        "get"
+      )) as ApiResponse<{ data: Farmer[] }>;
       if (response.success && response.data) {
-        const farmersData = Array.isArray(response.data.data) ? response.data.data : [];
+        const farmersData = Array.isArray(response.data.data)
+          ? response.data.data
+          : [];
         setFarmers(farmersData);
       } else {
         setFarmers([]);
@@ -165,8 +167,12 @@ export default function Customers() {
         }
       } else {
         // Add new farmer
-        console.log("dsdsd", data)
-        const response = await apiCall(allRoutes.farmers.addFarmer, "post", data);
+        console.log("dsdsd", data);
+        const response = await apiCall(
+          allRoutes.farmers.addFarmer,
+          "post",
+          data
+        );
         if (response.success) {
           toast.success(t("farmers.farmerAdded"));
           setShowAddDialog(false);
@@ -176,7 +182,9 @@ export default function Customers() {
       }
     } catch (error) {
       console.error("Failed to save farmer:", error);
-      toast.error(editingFarmer ? t("farmers.failedToUpdate") : t("farmers.failedToAdd"));
+      toast.error(
+        editingFarmer ? t("farmers.failedToUpdate") : t("farmers.failedToAdd")
+      );
     } finally {
       setSubmitting(false);
     }
@@ -193,7 +201,10 @@ export default function Customers() {
   // Handle delete farmer
   const handleDeleteFarmer = async (farmerId: number) => {
     try {
-      const response = await apiCall(allRoutes.farmers.delete(farmerId), "delete");
+      const response = await apiCall(
+        allRoutes.farmers.delete(farmerId),
+        "delete"
+      );
       if (response.success) {
         toast.success(t("farmers.farmerDeleted"));
         fetchFarmers(); // Refresh the list
@@ -235,11 +246,14 @@ export default function Customers() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-                      <DialogTitle>
-            {editingFarmer ? t("farmers.editFarmer") : t("farmers.addFarmer")}
-          </DialogTitle>
+            <DialogTitle>
+              {editingFarmer ? t("farmers.editFarmer") : t("farmers.addFarmer")}
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit(handleSubmitFarmer)} className="space-y-4">
+          <form
+            onSubmit={handleSubmit(handleSubmitFarmer)}
+            className="space-y-4"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">{t("farmers.name")} *</Label>
@@ -307,7 +321,11 @@ export default function Customers() {
                 {t("farmers.cancel")}
               </Button>
               <Button type="submit" disabled={submitting}>
-                {submitting ? t("farmers.saving") : editingFarmer ? t("farmers.update") : t("farmers.addFarmer")}
+                {submitting
+                  ? t("farmers.saving")
+                  : editingFarmer
+                  ? t("farmers.update")
+                  : t("farmers.addFarmer")}
               </Button>
             </div>
           </form>
@@ -341,23 +359,27 @@ export default function Customers() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
-                                             <AlertDialogContent>
-                         <AlertDialogHeader>
-                           <AlertDialogTitle>{t("farmers.deleteConfirm")}</AlertDialogTitle>
-                           <AlertDialogDescription>
-                             {t("farmers.deleteDescription")}
-                           </AlertDialogDescription>
-                         </AlertDialogHeader>
-                         <AlertDialogFooter>
-                           <AlertDialogCancel>{t("farmers.cancel")}</AlertDialogCancel>
-                           <AlertDialogAction
-                             onClick={() => handleDeleteFarmer(farmer.id)}
-                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                           >
-                             {t("farmers.delete")}
-                           </AlertDialogAction>
-                         </AlertDialogFooter>
-                       </AlertDialogContent>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {t("farmers.deleteConfirm")}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t("farmers.deleteDescription")}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>
+                            {t("farmers.cancel")}
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteFarmer(farmer.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {t("farmers.delete")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
                     </AlertDialog>
                   </div>
                 </CardTitle>
@@ -384,16 +406,32 @@ export default function Customers() {
                 </div>
 
                 <div className="pt-4 border-t space-y-2">
-                                     <div className="flex justify-between">
-                     <span className="text-sm text-muted-foreground">{t("farmers.dairyId")}:</span>
-                     <span className="font-medium">{farmer.dairyId}</span>
-                   </div>
-                   {farmer.createdAt && (
-                     <div className="flex justify-between">
-                       <span className="text-sm text-muted-foreground">{t("farmers.createdAt")}:</span>
-                       <span className="text-sm">{new Date(farmer.createdAt).toLocaleDateString()}</span>
-                     </div>
-                   )}
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">
+                    Current Month Amount:
+                    </span>
+                    <span className="font-medium">{farmer.currentMonthMilkAmount}</span>
+                  </div>
+                  {farmer.address && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Address:
+                      </span>
+                      <span className="text-sm">
+                        {farmer.address}
+                      </span>
+                    </div>
+                  )}
+                  {farmer.createdAt && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        {t("farmers.createdAt")}:
+                      </span>
+                      <span className="text-sm">
+                        {new Date(farmer.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -58,7 +58,7 @@ export default function Layout() {
     { name: t("navigation.customers"), href: "/customers", icon: User },
     // { name: t("navigation.reports"), href: "/reports", icon: BarChart3 },
     {
-      name: "All Users and Farmers",
+      name: "Users and Farmers",
       href: "/dairy-listing",
       icon: Building2,
     },
@@ -188,8 +188,8 @@ export default function Layout() {
           <div className="flex flex-1 justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center">
               <h1 className="text-lg font-semibold text-foreground">
-                {navigation.find((item) => item.href === location.pathname)
-                  ?.name || t("navigation.dashboard")}
+                {/* {navigation.find((item) => item.href === location.pathname)
+                  ?.name || t("navigation.dashboard")} */}
               </h1>
             </div>
 
