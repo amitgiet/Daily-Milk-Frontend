@@ -70,7 +70,7 @@ export default function Layout() {
       },
       { name: t("navigation.customers"), href: "/customers", icon: User },
       {
-        name: "Users and Farmers",
+        name: t("navigation.usersAndFarmers"),
         href: "/dairy-listing",
         icon: Building2,
       },
@@ -80,7 +80,7 @@ export default function Layout() {
         icon: CreditCard,
       },
       {
-        name: "Admin Plans",
+        name: t("navigation.adminPlans"),
         href: "/admin-subscription-plans",
         icon: CreditCard,
       },
@@ -136,11 +136,11 @@ export default function Layout() {
                 <div className="flex items-center space-x-2">
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                   <span className="text-sm font-medium text-destructive">
-                    Subscription Required
+                    {t("navigation.subscriptionRequired")}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Please subscribe to access all features
+                  {t("navigation.subscribeToAccess")}
                 </p>
               </div>
             </div>
@@ -186,11 +186,11 @@ export default function Layout() {
                 <div className="flex items-center space-x-2">
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                   <span className="text-sm font-medium text-destructive">
-                    Subscription Required
+                    {t("navigation.subscriptionRequired")}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Please subscribe to access all features
+                  {t("navigation.subscribeToAccess")}
                 </p>
               </div>
             </div>
@@ -267,21 +267,28 @@ export default function Layout() {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium text-foreground">
-                      Signed in as
+                      {t("navigation.signedInAs")}
                     </p>
                     <p className="text-sm text-muted-foreground">{userEmail}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Role: {getRoleName(userRole)}
+                      {t("navigation.role")}: {(() => {
+                        switch (userRole) {
+                          case 1: return t("roles.admin");
+                          case 2: return t("roles.dairy");
+                          case 3: return t("roles.farmer");
+                          default: return t("roles.unknown");
+                        }
+                      })()}
                     </p>
                     {hasActiveSubscription && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Subscription: Active
+                        {t("navigation.subscription")}: {t("navigation.active")}
                       </p>
                     )}
                     {!hasActiveSubscription && (
                       <p className="text-xs text-muted-foreground mt-1 text-destructive">
                         <AlertTriangle className="mr-1 h-3 w-3" />
-                        No active subscription
+                        {t("navigation.noActiveSubscription")}
                       </p>
                     )}
                   </div>

@@ -9,15 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Plus,
-  Phone,
-  Mail,
-  MapPin,
-  Milk,
-  Edit,
-  Trash2,
-} from "lucide-react";
+import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -168,11 +160,10 @@ export default function Customers() {
       } else {
         // Add new farmer
         console.log("dsdsd", data);
-        const response = await apiCall(
-          allRoutes.farmers.addFarmer,
-          "post",
-          {...data, password: data.phone}
-        );
+        const response = await apiCall(allRoutes.farmers.addFarmer, "post", {
+          ...data,
+          password: data.phone,
+        });
         if (response.success) {
           toast.success(t("farmers.farmerAdded"));
           setShowAddDialog(false);
@@ -383,7 +374,9 @@ export default function Customers() {
                     </AlertDialog>
                   </div>
                 </CardTitle>
-                <CardDescription>ID: {farmer.id}</CardDescription>
+                <CardDescription>
+                  ID: FRM-{String(farmer.id).padStart(4, "0")}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -408,18 +401,18 @@ export default function Customers() {
                 <div className="pt-4 border-t space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">
-                    Current Month Amount:
+                      Current Month Amount:
                     </span>
-                    <span className="font-medium">{farmer.currentMonthMilkAmount}</span>
+                    <span className="font-medium">
+                      {farmer.currentMonthMilkAmount}
+                    </span>
                   </div>
                   {farmer.address && (
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">
                         Address:
                       </span>
-                      <span className="text-sm">
-                        {farmer.address}
-                      </span>
+                      <span className="text-sm">{farmer.address}</span>
                     </div>
                   )}
                   {farmer.createdAt && (

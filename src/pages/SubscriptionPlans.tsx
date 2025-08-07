@@ -165,15 +165,16 @@ export default function SubscriptionPlans() {
                     / {plan.durationDays} days
                   </span>
                 </div>
-                <CardDescription className="text-sm">
+                {/* <CardDescription className="text-sm">
                   {plan.durationDays === 30 && t("subscription.monthly")}
                   {plan.durationDays === 90 && t("subscription.quarterly")}
                   {plan.durationDays === 180 && t("subscription.biannual")}
                   {plan.durationDays === 365 && t("subscription.annual")}
-                </CardDescription>
+                </CardDescription> */}
               </CardHeader>
 
               <CardContent className="space-y-4 flex-1 flex flex-col">
+                <div className="flex flex-col justify-between h-full">
                 {/* Features */}
                 {plan.features &&
                   (() => {
@@ -207,7 +208,7 @@ export default function SubscriptionPlans() {
                   })()}
 
                 {/* Default Features */}
-                <div className="space-y-3 pt-4 border-t">
+                <div className="space-y-3 pt-4">
                   <div className="flex items-center gap-3">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <span className="text-sm text-muted-foreground">
@@ -233,7 +234,7 @@ export default function SubscriptionPlans() {
                     </span>
                   </div>
                 </div>
-
+                </div>
                 {/* Action Button - Bottom Aligned */}
                 <div className="mt-auto pt-6">
                   <Button

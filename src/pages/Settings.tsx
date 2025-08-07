@@ -173,6 +173,7 @@ export default function Settings() {
       phone: userData.phone,
       new_password: passwordData.newPassword,
       confirm_password: passwordData.confirmPassword,
+      
     }); 
     if (response.success) {
       toast.success(t("settings.passwordChanged"));

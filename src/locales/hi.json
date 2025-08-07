@@ -8,7 +8,22 @@
     "customers": "किसान",
     "reports": "रिपोर्ट",
     "settings": "सेटिंग्स",
-    "subscriptionPlans": "सदस्यता योजनाएं"
+    "subscriptionPlans": "सदस्यता योजनाएं",
+    "usersAndFarmers": "उपयोगकर्ता और किसान",
+    "adminPlans": "एडमिन योजनाएं",
+    "subscriptionRequired": "सदस्यता आवश्यक",
+    "subscribeToAccess": "कृपया सभी सुविधाओं तक पहुंचने के लिए सदस्यता लें",
+    "signedInAs": "साइन इन किया गया",
+    "role": "भूमिका",
+    "subscription": "सदस्यता",
+    "active": "सक्रिय",
+    "noActiveSubscription": "कोई सक्रिय सदस्यता नहीं"
+  },
+  "roles": {
+    "admin": "एडमिन",
+    "dairy": "डेयरी",
+    "farmer": "किसान",
+    "unknown": "अज्ञात"
   },
   "common": {
     "loading": "लोड हो रहा है...",

@@ -8,7 +8,22 @@
     "customers": "Farmers",
     "reports": "Reports",
     "settings": "Settings",
-    "subscriptionPlans": "Subscription Plans"
+    "subscriptionPlans": "Subscription Plans",
+    "usersAndFarmers": "Users and Farmers",
+    "adminPlans": "Admin Plans",
+    "subscriptionRequired": "Subscription Required",
+    "subscribeToAccess": "Please subscribe to access all features",
+    "signedInAs": "Signed in as",
+    "role": "Role",
+    "subscription": "Subscription",
+    "active": "Active",
+    "noActiveSubscription": "No active subscription"
+  },
+  "roles": {
+    "admin": "Admin",
+    "dairy": "Dairy",
+    "farmer": "Farmer",
+    "unknown": "Unknown"
   },
   "common": {
     "loading": "Loading...",
