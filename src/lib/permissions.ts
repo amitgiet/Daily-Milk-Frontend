@@ -72,7 +72,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   {
     path: '/settings',
     permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    roles: [UserRole.ADMIN],
+    roles: [UserRole.ADMIN, UserRole.FARMER],
   },
 
   // Subscription Plans - Only admin and dairy can access, farmers cannot
@@ -104,39 +104,45 @@ export const hasPermission = (userRole: UserRole, permission: keyof Permission):
   return ROLE_PERMISSIONS[userRole]?.[permission] || false;
 };
 
-export const canAccessRoute = (userRole: UserRole, path: string, hasSubscription: boolean = false): boolean => {
+export const canAccessRoute = (userRole: UserRole | number, path: string, hasSubscription: boolean = false): boolean => {
+  // Convert number to UserRole enum if needed
+  const role = typeof userRole === 'number' ? userRole as UserRole : userRole;
+  
   const routePermission = ROUTE_PERMISSIONS.find(route => route.path === path);
   if (!routePermission) return false;
   
   // Check if user role is allowed
-  if (!routePermission.roles.includes(userRole)) return false;
+  if (!routePermission.roles.includes(role)) return false;
   
   // Special handling for roleId 3 (Farmer) - they can access milk collection without subscription
-  if (userRole === UserRole.FARMER && (path === '/milk-collection')) {
+  if (role === UserRole.FARMER && (path === '/milk-collection')) {
     return true;
   }
   
   // For dairy users, check subscription requirement
-  if (userRole === UserRole.DAIRY && routePermission.requiresSubscription && !hasSubscription) {
+  if (role === UserRole.DAIRY && routePermission.requiresSubscription && !hasSubscription) {
     return false;
   }
   
   return true;
 };
 
-export const getRoutePermissions = (userRole: UserRole, path: string, hasSubscription: boolean = false): Permission | null => {
+export const getRoutePermissions = (userRole: UserRole | number, path: string, hasSubscription: boolean = false): Permission | null => {
+  // Convert number to UserRole enum if needed
+  const role = typeof userRole === 'number' ? userRole as UserRole : userRole;
+  
   const routePermission = ROUTE_PERMISSIONS.find(route => route.path === path);
-  if (!routePermission || !routePermission.roles.includes(userRole)) {
+  if (!routePermission || !routePermission.roles.includes(role)) {
     return null;
   }
   
   // Special handling for roleId 3 (Farmer) - they can access milk collection without subscription
-  if (userRole === UserRole.FARMER && path === '/milk-collection') {
+  if (role === UserRole.FARMER && path === '/milk-collection') {
     return routePermission.permissions;
   }
   
   // For dairy users, check subscription requirement
-  if (userRole === UserRole.DAIRY && routePermission.requiresSubscription && !hasSubscription) {
+  if (role === UserRole.DAIRY && routePermission.requiresSubscription && !hasSubscription) {
     return null;
   }
   

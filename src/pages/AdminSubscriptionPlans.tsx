@@ -149,7 +149,7 @@ export default function AdminSubscriptionPlans() {
         "get"
       );
       if (response.success && response.data) {
-        setPendingRequests(Array.isArray(response.data) ? response.data : []);
+        setPendingRequests(Array.isArray(response.data.data) ? response.data.data : []);
       }
     } catch (error) {
       console.error("Error loading pending requests:", error);

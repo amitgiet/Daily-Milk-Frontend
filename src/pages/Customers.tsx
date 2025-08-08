@@ -407,14 +407,14 @@ export default function Customers() {
                       {farmer.currentMonthMilkAmount}
                     </span>
                   </div>
-                  {farmer.address && (
+                  {/* {farmer.address && (
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">
                         Address:
                       </span>
                       <span className="text-sm">{farmer.address}</span>
                     </div>
-                  )}
+                  )} */}
                   {farmer.createdAt && (
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">

@@ -45,6 +45,7 @@ import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { toast } from "react-toastify";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/types/auth";
 
 interface MilkRateSettings {
   fatRate: number | string;
@@ -84,12 +85,20 @@ export default function Settings() {
   const [isSavingMilkRates, setIsSavingMilkRates] = useState(false);
   const [userData, setUserData] = useState(user);
 
-  // Load milk rate settings on component mount
+  // Load milk rate settings on component mount (only for admin users)
   useEffect(() => {
-    loadMilkRateSettings();
-  }, []);
+    // Only load milk rate settings if user exists and is an admin
+    if (user && user.roleId === UserRole.ADMIN) {
+      loadMilkRateSettings();
+    }
+  }, [user]); // Dependency on user object to ensure it runs when user data is loaded
 
   const loadMilkRateSettings = async () => {
+    // Double-check that only admin users can load milk rate settings
+    if (!user || user.roleId !== UserRole.ADMIN) {
+      return;
+    }
+    
     setIsLoadingMilkRates(true);
     try {
       const response = await apiCall(allRoutes.dairy.rates, "get");
@@ -120,6 +129,12 @@ export default function Settings() {
   };
 
   const handleSaveMilkRates = async () => {
+    // Double-check that only admin users can save milk rate settings
+    if (!user || user.roleId !== UserRole.ADMIN) {
+      toast.error(t("settings.unauthorized"));
+      return;
+    }
+    
     setIsSavingMilkRates(true);
     try {
       const response = await apiCall(allRoutes.dairy.updateRates, "post", {
@@ -413,113 +428,115 @@ export default function Settings() {
             <Button onClick={handleUpdateProfile}>{t("settings.updateProfile")}</Button>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Milk className="h-5 w-5 text-primary" />
-              {t("settings.milkRateSettings")}
-            </CardTitle>
-            <CardDescription>
-              {t("settings.configureMilkPricing")}
-            </CardDescription>
-          </CardHeader>{" "}
-          <CardContent className="space-y-4">
-            {isLoadingMilkRates ? (
-              <div className="text-center py-4">
-                {t("settings.loadingMilkRateSettings")}
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="fatRate">{t("settings.fatRate")} </Label>
-                  <Input
-                    id="fatRate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={milkRateSettings.fatRate}
-                    onChange={(e) =>
-                      setMilkRateSettings((prev) => ({
-                        ...prev,
-                        fatRate: e.target.value,
-                      }))
-                    }
-                    placeholder="2.00"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {t("settings.fatRateDescription")}
-                  </p>
+        {user?.roleId === UserRole.ADMIN && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Milk className="h-5 w-5 text-primary" />
+                {t("settings.milkRateSettings")}
+              </CardTitle>
+              <CardDescription>
+                {t("settings.configureMilkPricing")}
+              </CardDescription>
+            </CardHeader>{" "}
+            <CardContent className="space-y-4">
+              {isLoadingMilkRates ? (
+                <div className="text-center py-4">
+                  {t("settings.loadingMilkRateSettings")}
                 </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="fatRate">{t("settings.fatRate")} </Label>
+                    <Input
+                      id="fatRate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={milkRateSettings.fatRate}
+                      onChange={(e) =>
+                        setMilkRateSettings((prev) => ({
+                          ...prev,
+                          fatRate: e.target.value,
+                        }))
+                      }
+                      placeholder="2.00"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t("settings.fatRateDescription")}
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="snfRate">{t("settings.snfRate")} </Label>
-                  <Input
-                    id="snfRate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={milkRateSettings.snfRate}
-                    onChange={(e) =>
-                      setMilkRateSettings((prev) => ({
-                        ...prev,
-                        snfRate: e.target.value,
-                      }))
-                    }
-                    placeholder="1.00"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {t("settings.snfRateDescription")}
-                  </p>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="snfRate">{t("settings.snfRate")} </Label>
+                    <Input
+                      id="snfRate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={milkRateSettings.snfRate}
+                      onChange={(e) =>
+                        setMilkRateSettings((prev) => ({
+                          ...prev,
+                          snfRate: e.target.value,
+                        }))
+                      }
+                      placeholder="1.00"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t("settings.snfRateDescription")}
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="formulaType">{t("settings.formulaType")}</Label>
-                  <Select
-                    value={milkRateSettings.formulaType}
-                    onValueChange={(value: "fatOnly" | "fatSnf") =>
-                      setMilkRateSettings((prev) => ({
-                        ...prev,
-                        formulaType: value,
-                      }))
-                    }
+                  <div className="space-y-2">
+                    <Label htmlFor="formulaType">{t("settings.formulaType")}</Label>
+                    <Select
+                      value={milkRateSettings.formulaType}
+                      onValueChange={(value: "fatOnly" | "fatSnf") =>
+                        setMilkRateSettings((prev) => ({
+                          ...prev,
+                          formulaType: value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fatOnly">
+                          {t("settings.fatOnly")}{" "}
+                          <small className="text-xs text-muted-foreground">
+                            {t("settings.fatOnlyDescription")}
+                          </small>
+                        </SelectItem>
+                        <SelectItem value="fatSnf">
+                          {t("settings.fatSnf")}{" "}
+                          <small className="text-xs text-muted-foreground">
+                            {t("settings.fatSnfDescription")}
+                          </small>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {milkRateSettings.formulaType === "fatOnly" &&
+                        t("settings.fatOnlyFormulaDescription")}
+                      {milkRateSettings.formulaType === "fatSnf" &&
+                        t("settings.fatSnfFormulaDescription")}
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleSaveMilkRates}
+                    disabled={isSavingMilkRates}
+                    className="w-full"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fatOnly">
-                        {t("settings.fatOnly")}{" "}
-                        <small className="text-xs text-muted-foreground">
-                          {t("settings.fatOnlyDescription")}
-                        </small>
-                      </SelectItem>
-                      <SelectItem value="fatSnf">
-                        {t("settings.fatSnf")}{" "}
-                        <small className="text-xs text-muted-foreground">
-                          {t("settings.fatSnfDescription")}
-                        </small>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {milkRateSettings.formulaType === "fatOnly" &&
-                      t("settings.fatOnlyFormulaDescription")}
-                    {milkRateSettings.formulaType === "fatSnf" &&
-                      t("settings.fatSnfFormulaDescription")}
-                  </p>
-                </div>
-
-                <Button
-                  onClick={handleSaveMilkRates}
-                  disabled={isSavingMilkRates}
-                  className="w-full"
-                >
-                  {isSavingMilkRates ? t("settings.saving") : t("settings.saveMilkRateSettings")}
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
+                    {isSavingMilkRates ? t("settings.saving") : t("settings.saveMilkRateSettings")}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
