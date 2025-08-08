@@ -49,6 +49,19 @@ export default function Layout() {
 
   // Define navigation items based on subscription status
   const getNavigationItems = () => {
+    // Special handling for roleId 3 (Farmer) - hide subscription plans, show milk collection
+    if (userRole === 3) {
+      return [
+        { name: t("navigation.dashboard"), href: "/", icon: Home },
+        {
+          name: t("navigation.milkCollection"),
+          href: "/milk-collection",
+          icon: Milk,
+        },
+        { name: t("navigation.settings"), href: "/settings", icon: Settings },
+      ];
+    }
+
     // If user doesn't have subscription and is not admin, only show subscription plans
     if (!hasActiveSubscription && userRole !== 1) { // 1 is ADMIN role
       return [
@@ -130,7 +143,7 @@ export default function Layout() {
             </Button>
           </div>
           {/* Subscription Status Indicator */}
-          {!hasActiveSubscription && userRole !== 1 && (
+          {!hasActiveSubscription && userRole !== 1 && userRole !== 3 && (
             <div className="px-4 pb-4">
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
                 <div className="flex items-center space-x-2">
@@ -180,7 +193,7 @@ export default function Layout() {
             </div>
           </div>
           {/* Subscription Status Indicator for Desktop */}
-          {!hasActiveSubscription && userRole !== 1 && (
+          {!hasActiveSubscription && userRole !== 1 && userRole !== 3 && (
             <div className="px-6 pb-4">
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
                 <div className="flex items-center space-x-2">
@@ -280,12 +293,12 @@ export default function Layout() {
                         }
                       })()}
                     </p>
-                    {hasActiveSubscription && (
+                    {userRole !== 3 && hasActiveSubscription && (
                       <p className="text-xs text-muted-foreground mt-1">
                         {t("navigation.subscription")}: {t("navigation.active")}
                       </p>
                     )}
-                    {!hasActiveSubscription && (
+                    {userRole !== 3 && !hasActiveSubscription && (
                       <p className="text-xs text-muted-foreground mt-1 text-destructive">
                         <AlertTriangle className="mr-1 h-3 w-3" />
                         {t("navigation.noActiveSubscription")}

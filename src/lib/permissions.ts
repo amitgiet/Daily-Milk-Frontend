@@ -111,6 +111,11 @@ export const canAccessRoute = (userRole: UserRole, path: string, hasSubscription
   // Check if user role is allowed
   if (!routePermission.roles.includes(userRole)) return false;
   
+  // Special handling for roleId 3 (Farmer) - they can access milk collection without subscription
+  if (userRole === UserRole.FARMER && (path === '/milk-collection')) {
+    return true;
+  }
+  
   // For dairy users, check subscription requirement
   if (userRole === UserRole.DAIRY && routePermission.requiresSubscription && !hasSubscription) {
     return false;
@@ -123,6 +128,11 @@ export const getRoutePermissions = (userRole: UserRole, path: string, hasSubscri
   const routePermission = ROUTE_PERMISSIONS.find(route => route.path === path);
   if (!routePermission || !routePermission.roles.includes(userRole)) {
     return null;
+  }
+  
+  // Special handling for roleId 3 (Farmer) - they can access milk collection without subscription
+  if (userRole === UserRole.FARMER && path === '/milk-collection') {
+    return routePermission.permissions;
   }
   
   // For dairy users, check subscription requirement

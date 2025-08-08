@@ -188,11 +188,6 @@ export default function Settings() {
     });
   };
 
-  const handle2FASetup = () => {
-    setShow2FADialog(true);
-    setTwoFactorStep(twoFactorEnabled ? 3 : 1); // If already enabled, go to disable step
-  };
-
   const handleEnable2FA = () => {
     if (verificationCode.length !== 6) {
       alert(t("settings.enter6DigitCode"));
