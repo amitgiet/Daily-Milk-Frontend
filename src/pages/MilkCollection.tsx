@@ -71,6 +71,7 @@ const MilkCollection: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [quantity, setQuantity] = useState<string>("");
   const [shift, setShift] = useState<"morning" | "evening">("morning");
+  const [selectedShift, setSelectedShift] = useState<"morning" | "evening" | "">("");
   const [date, setDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
@@ -95,7 +96,7 @@ const MilkCollection: React.FC = () => {
     () => {
       // Use the permissions hook to get the correct API endpoint
       const filterParams = getFarmerFilterParams();
-      return apiCall(`${allRoutes.milkCollection.list}${filterParams}`, "get");
+      return apiCall(`${allRoutes.milkCollection.list}${filterParams}?shift=${selectedShift}`, "get");
     },
     {
       autoExecute: true,
@@ -230,11 +231,14 @@ const MilkCollection: React.FC = () => {
   const averageFat =
     milkEntries && milkEntries.length > 0
       ? milkEntries.reduce(
-          (sum, entry) => sum + (parseFloat(entry.fat?.toString() || "0") || 0),
-          0
-        ) / milkEntries.length
+        (sum, entry) => sum + (parseFloat(entry.fat?.toString() || "0") || 0),
+        0
+      ) / milkEntries.length
       : 0;
 
+  useEffect(() => {
+    fetchMilk();
+  }, [selectedShift]);
   return (
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
@@ -367,8 +371,8 @@ const MilkCollection: React.FC = () => {
                   {collectingMilk || updatingMilk
                     ? t("common.loading")
                     : isEditMode
-                    ? t("common.update")
-                    : t("common.submit")}
+                      ? t("common.update")
+                      : t("common.submit")}
                 </Button>
                 {isEditMode && (
                   <Button
@@ -433,9 +437,25 @@ const MilkCollection: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>
+            <div className="flex justify-between items-center gap-2">
             {isFarmerUser
               ? t("milkCollection.myCollectionList")
               : t("milkCollection.dailyList")}
+            <Select
+              value={selectedShift}
+              onValueChange={(value: "morning" | "evening") =>
+                setSelectedShift(value)
+              } 
+            >
+              <SelectTrigger className="w-46">
+                <SelectValue placeholder={t("milkCollection.selectShift")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="morning">{t("milkCollection.morning")}</SelectItem>
+                <SelectItem value="evening">{t("milkCollection.evening")}</SelectItem>
+              </SelectContent>
+            </Select>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
