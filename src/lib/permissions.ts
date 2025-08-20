@@ -72,7 +72,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   {
     path: '/settings',
     permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    roles: [UserRole.ADMIN, UserRole.FARMER],
+    roles: [UserRole.ADMIN, UserRole.FARMER, UserRole.DAIRY],
   },
 
   // Subscription Plans - Only admin and dairy can access, farmers cannot

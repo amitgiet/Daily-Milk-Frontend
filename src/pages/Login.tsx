@@ -17,6 +17,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
+import Logo from "../pages/logo.png"
 
 const Login = () => {
   const { t } = useTranslation();
@@ -182,7 +183,7 @@ const Login = () => {
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="bg-primary/10 p-3 rounded-full">
-              <Milk className="h-8 w-8 text-primary" />
+              <img src={Logo} alt="Logo" className="h-8 w-8 text-primary" />
             </div>
           </div>
           <div>
