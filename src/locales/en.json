@@ -105,7 +105,7 @@
   },
   "signup": {
     "createAccount": "Create Account",
-    "createAccountDescription": "Join MilkyWay Management to streamline your dairy operations",
+    "createAccountDescription": "Join Dairy Book Management to streamline your dairy operations",
     "fullName": "Full Name",
     "fullNamePlaceholder": "Enter your full name",
     "phoneNumber": "Phone Number",
@@ -123,7 +123,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "welcome": "Welcome to MilkyWay Management",
+    "welcome": "Welcome to Dairy Book Management",
     "welcomeDescription": "Manage your dairy inventory and orders with ease",
     "addNewProduct": "Add New Product",
     "dailyReport": "Daily Report",

@@ -111,7 +111,7 @@ export default function Layout() {
     navigate("/login");
   };
 
-  const userEmail = user?.name || user?.email || user?.phone || "admin@milkyway.com";
+  const userEmail = user?.name || user?.email || user?.phone || "admin@Dairy Book.com";
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,7 +131,7 @@ export default function Layout() {
             <div className="flex items-center space-x-2">
               <Milk className="h-8 w-8 text-primary" />
               <span className="text-xl font-bold text-foreground">
-                DairyTrack
+                Dairy Book
               </span>
             </div>
             <Button
@@ -188,7 +188,7 @@ export default function Layout() {
             <div className="flex items-center space-x-2">
               <Milk className="h-8 w-8 text-primary" />
               <span className="text-xl font-bold text-foreground">
-                DairyTrack
+                Dairy Book
               </span>
             </div>
           </div>

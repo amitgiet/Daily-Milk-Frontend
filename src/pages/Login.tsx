@@ -17,7 +17,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
-import Logo from "../pages/logo.png"
+import Logo from "../pages/pnglogo.png"
 
 const Login = () => {
   const { t } = useTranslation();
@@ -165,13 +165,6 @@ const Login = () => {
     }
   };
 
-  const handleCloseContactAdmin = () => {
-    setShowContactAdmin(false);
-    setContactAdminError("");
-    setContactAdminSuccess(false);
-    resetContact();
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-6">
       {/* Language Switcher */}
@@ -183,7 +176,7 @@ const Login = () => {
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="bg-primary/10 p-3 rounded-full">
-              <img src={Logo} alt="Logo" className="h-8 w-8 text-primary" />
+              <img src={Logo} alt="Logo" className="h-20 w-20 text-primary" />
             </div>
           </div>
           <div>
@@ -293,13 +286,13 @@ const Login = () => {
             </p>
           </div>
 
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+          {/* <div className="mt-6 p-4 bg-muted/50 rounded-lg">
             <h4 className="text-sm font-medium text-foreground mb-2">{t('login.demoCredentials')}:</h4>
             <div className="text-sm text-muted-foreground space-y-1">
               <p><strong>{t('auth.phone')}:</strong> 9636044933</p>
               <p><strong>{t('auth.password')}:</strong> 12345678</p>
             </div>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
       <Dialog open={showForgotPassword} onOpenChange={(open) => {

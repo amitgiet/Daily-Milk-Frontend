@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
+import Logo from "../pages/pnglogo.png"
 
 const signupSchema = z.object({
   name: z.string().min(2, "Full name must be at least 2 characters"),
@@ -84,7 +85,7 @@ export default function Signup() {
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="bg-primary/10 p-3 rounded-full">
-                <Milk className="h-8 w-8 text-primary" />
+                <img src={Logo} alt="Logo" className="h-20 w-20 text-primary" />
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-foreground">
