@@ -111,7 +111,7 @@ export default function Layout() {
     navigate("/login");
   };
 
-  const userEmail = user?.email || user?.phone || "admin@milkyway.com";
+  const userEmail = user?.name || user?.email || user?.phone || "admin@milkyway.com";
 
   return (
     <div className="min-h-screen bg-background">
