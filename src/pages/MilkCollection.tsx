@@ -25,11 +25,18 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { useQuery, useMutation } from "../hooks/useApi";
 import { apiCall } from "../lib/apiCall";
 import { allRoutes } from "../lib/apiRoutes";
 import { useAuth } from "../contexts/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
+import Receipt from "../components/Reciept";
 
 interface MilkEntry {
   id: number;
@@ -77,7 +84,11 @@ const MilkCollection: React.FC = () => {
   );
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingEntry, setEditingEntry] = useState<MilkEntry | null>(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
+  const [savedMilkEntry, setSavedMilkEntry] = useState<any>(null);
 
+  console.log(receiptData);
   // Fetch farmers list (only for admin/dairy users)
   const {
     data: farmersData,
@@ -96,7 +107,25 @@ const MilkCollection: React.FC = () => {
     () => {
       // Use the permissions hook to get the correct API endpoint
       const filterParams = getFarmerFilterParams();
-      return apiCall(`${allRoutes.milkCollection.list}${filterParams}?shift=${selectedShift}`, "get");
+
+      // Extract farmerId from filterParams if it exists
+      let farmerId: string | number = "";
+      if (filterParams && filterParams.includes('farmerId=')) {
+        const match = filterParams.match(/farmerId=([^&]+)/);
+        if (match) {
+          farmerId = match[1];
+        }
+      }
+
+      // Call the list function with proper parameters
+      const url = allRoutes.milkCollection.list(
+        farmerId,
+        undefined,
+        undefined,
+        selectedShift === "" ? undefined : selectedShift
+      );
+
+      return apiCall(url, "get");
     },
     {
       autoExecute: true,
@@ -183,6 +212,8 @@ const MilkCollection: React.FC = () => {
       quantity: parseFloat(quantity),
       fat: parseFloat(fat),
       snf: parseFloat(snf),
+      rate,
+      totalAmount,
     };
 
     if (isEditMode && editingEntry) {
@@ -191,6 +222,138 @@ const MilkCollection: React.FC = () => {
       await collectMilk(milkData);
     }
     setLoading(false);
+  };
+
+  const handleSaveAndPrint = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedFarmer || !fat || !snf || !quantity) {
+      return;
+    }
+    setLoading(true);
+    const rate = calculateRate(parseFloat(fat), parseFloat(snf));
+    const totalAmount = rate * parseFloat(quantity);
+
+    const milkData = {
+      farmerId: parseInt(selectedFarmer),
+      date,
+      shift,
+      quantity: parseFloat(quantity),
+      fat: parseFloat(fat),
+      snf: parseFloat(snf),
+      rate,
+      totalAmount,
+    };
+
+    try {
+      if (isEditMode && editingEntry) {
+        await updateMilk({ id: editingEntry.id, updateData: milkData });
+      } else {
+        await collectMilk(milkData);
+      }
+
+      // Get farmer name for receipt
+      const selectedFarmerData = farmers.find(f => f.id.toString() === selectedFarmer);
+      const farmerName = selectedFarmerData?.name || "Unknown Farmer";
+
+      // Prepare receipt data
+      const receipt = {
+        address: "Dairy Management System",
+        date: new Date(date).toLocaleDateString(),
+        items: [{
+          name: `${farmerName}`,
+          price: totalAmount
+        }],
+        total: totalAmount,
+        cash: totalAmount,
+        change: 0,
+        fatRate: parseFloat(fat),
+        quantity: parseFloat(quantity),
+        snfRate: parseFloat(snf)
+      };
+
+      setReceiptData(receipt);
+      setSavedMilkEntry(milkData);
+      setIsReceiptModalOpen(true);
+      resetForm();
+    } catch (error) {
+      console.error("Error saving milk entry:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    if (receiptData) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Milk Collection Receipt</title>
+              <style>
+                body { font-family: monospace; margin: 20px; }
+                .receipt { width: 300px; margin: 0 auto; }
+                .header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
+                .items { margin: 10px 0; }
+                .totals { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 10px 0; margin: 10px 0; }
+                .footer { text-align: center; margin-top: 10px; }
+                .barcode { height: 50px; background: repeating-linear-gradient(to right, #000 0px, #000 2px, transparent 2px, transparent 4px); }
+              </style>
+            </head>
+            <body>
+              <div class="receipt">
+                <div class="header">
+                  <h2>Receipt</h2>
+                  <p>Address: ${receiptData.address}</p>
+                  <p>Date: ${receiptData.date}</p>
+                </div>
+                <div class="items">
+                  ${receiptData.items.map((item: any) => `
+                    <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                      <span>${item.name}</span>
+                      <span>₹${item.price.toFixed(2)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="totals">
+                 <div style="display: flex; justify-content: space-between;">
+                    <span>Fat Rate</span>
+                    <span>₹${receiptData.fatRate.toFixed(2)}</span>
+                  </div>
+                   <div style="display: flex; justify-content: space-between;">
+                    <span>Quantity</span>
+                    <span>₹${receiptData.quantity.toFixed(2)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>SNF Rate</span>
+                    <span>₹${receiptData.snfRate.toFixed(2)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>Total</span>
+                    <span>₹${receiptData.total.toFixed(2)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>Cash</span>
+                    <span>₹${receiptData.cash.toFixed(2)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>Change</span>
+                    <span>₹${receiptData.change.toFixed(2)}</span>
+                  </div>
+                </div>
+                <div class="footer">
+                  <p>THANK YOU FOR SHOPPING</p>
+                </div>
+                <div class="barcode"></div>
+              </div>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
   };
 
   const handleEdit = (entry: MilkEntry) => {
@@ -383,6 +546,15 @@ const MilkCollection: React.FC = () => {
                     {t("common.cancel")}
                   </Button>
                 )}
+                <Button
+                  type="button"
+                  onClick={handleSaveAndPrint}
+                  disabled={collectingMilk || updatingMilk || loading}
+                >
+                  {collectingMilk || updatingMilk
+                    ? t("common.loading")
+                    : t("common.saveAndPrint")}
+                </Button>
               </div>
             </form>
           </CardContent>
@@ -438,23 +610,23 @@ const MilkCollection: React.FC = () => {
         <CardHeader>
           <CardTitle>
             <div className="flex justify-between items-center gap-2">
-            {isFarmerUser
-              ? t("milkCollection.myCollectionList")
-              : t("milkCollection.dailyList")}
-            <Select
-              value={selectedShift}
-              onValueChange={(value: "morning" | "evening") =>
-                setSelectedShift(value)
-              } 
-            >
-              <SelectTrigger className="w-46">
-                <SelectValue placeholder={t("milkCollection.selectShift")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="morning">{t("milkCollection.morning")}</SelectItem>
-                <SelectItem value="evening">{t("milkCollection.evening")}</SelectItem>
-              </SelectContent>
-            </Select>
+              {isFarmerUser
+                ? t("milkCollection.myCollectionList")
+                : t("milkCollection.dailyList")}
+              <Select
+                value={selectedShift}
+                onValueChange={(value: "morning" | "evening") =>
+                  setSelectedShift(value)
+                }
+              >
+                <SelectTrigger className="w-46">
+                  <SelectValue placeholder={t("milkCollection.selectShift")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="morning">{t("milkCollection.morning")}</SelectItem>
+                  <SelectItem value="evening">{t("milkCollection.evening")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardTitle>
         </CardHeader>
@@ -553,8 +725,42 @@ const MilkCollection: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Receipt Modal */}
+      <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("milkCollection.receipt")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {receiptData && (
+              <Receipt
+                address={receiptData.address}
+                date={receiptData.date}
+                items={receiptData.items}
+                total={receiptData.total}
+                cash={receiptData.total}
+                change={receiptData.change}
+                fatRate={receiptData.fatRate}
+                quantity={receiptData.quantity}
+                snfRate={receiptData.snfRate}
+              />
+            )}
+            <div className="flex justify-center space-x-2">
+              <Button onClick={handlePrint} variant="outline">
+                {t("common.print")}
+              </Button>
+              <Button onClick={() => setIsReceiptModalOpen(false)}>
+                {t("common.close")}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default MilkCollection;
+
+

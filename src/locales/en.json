@@ -53,7 +53,9 @@
     "update": "Update",
     "actions": "Actions",
     "warning": "Warning",
-    "info": "Information"
+    "info": "Information",
+    "saveAndPrint": "Save & Print",
+    "print": "Print"
   },
   "auth": {
     "login": "Login",
@@ -526,7 +528,8 @@
     "myCollections": "My Collections",
     "myAverageFat": "My Avg Fat %",
     "myCollectionList": "My Collection List",
-    "noMyEntries": "No milk entries found for you"
+    "noMyEntries": "No milk entries found for you",
+    "receipt": "Milk Collection Receipt"
   },
   "dairyRates": {
     "title": "Dairy Rates Management",
