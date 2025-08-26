@@ -97,6 +97,12 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
     roles: [UserRole.ADMIN],
     requiresSubscription: false, // Dairy needs subscription to access
   },
+  {
+    path: '/dairy-reports',
+    permissions: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    roles: [UserRole.ADMIN, UserRole.DAIRY],
+    requiresSubscription: true, // Dairy needs subscription to access
+  },
 ];
 
 // Utility functions

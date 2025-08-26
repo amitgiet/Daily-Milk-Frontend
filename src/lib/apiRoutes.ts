@@ -18,7 +18,19 @@ export const allRoutes = {
   },
   milkCollection: {
     collect: '/admin/milk/collect',
-    list: '/admin/milk/list',
+    list: (farmerId: string | number = "", startDate: string, endDate: string, shift: string) => {
+      let url = '/admin/milk/list';
+      if(farmerId) {
+        url += `?farmerId=${farmerId}`;
+      } 
+       if(startDate && endDate) {
+        url += `?startDate=${startDate}&endDate=${endDate}`;
+      } 
+       if(shift) {
+        url += `?shift=${shift}`;
+      }
+      return url;
+    },
     get: (id: string | number) => `/admin/milk/${id}`,
     update: (id: string | number) => `/admin/milk/${id}`,
     delete: (id: string | number) => `/admin/milk/${id}`

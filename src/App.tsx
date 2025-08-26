@@ -20,6 +20,7 @@ import Settings from "./pages/Settings";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import AdminSubscriptionPlans from "./pages/AdminSubscriptionPlans";
 import DairyListing from "./pages/DairyListing";
+import DairyReports from "./pages/DairyReports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
               {/* <Route path="inventory" element={<Inventory />} /> */}
               <Route path="milk-collection" element={<MilkCollection />} />
               {/* <Route path="dairy-rates" element={<DairyRates />} /> */}
+              <Route path="dairy-reports" element={<DairyReports />} />
               <Route path="customers" element={<Customers />} />
               <Route path="orders" element={<Orders />} />
               <Route path="reports" element={<Reports />} />

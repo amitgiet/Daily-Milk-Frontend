@@ -17,7 +17,8 @@
     "role": "Role",
     "subscription": "Subscription",
     "active": "Active",
-    "noActiveSubscription": "No active subscription"
+    "noActiveSubscription": "No active subscription",
+    "dairyReports": "Dairy Reports"
   },
   "roles": {
     "admin": "Admin",
@@ -331,14 +332,26 @@
     "previous": "Previous",
     "next": "Next"
   },
-  "reports": {
-    "title": "Reports",
+  "dairyReports": {
+    "title": "Dairy Reports",
+    "description": "View detailed reports and export data",
     "salesReport": "Sales Report",
     "inventoryReport": "Inventory Report",
     "customerReport": "Customer Report",
     "dateRange": "Date Range",
     "generateReport": "Generate Report",
-    "downloadReport": "Download Report"
+    "downloadReport": "Download Report",
+    "selectDateRange": "Select Date Range",
+    "selectShift": "Select Shift",
+    "selectFarmer": "Select Farmer",
+    "allFarmers": "All Farmers",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last7days": "Last 7 Days",
+    "last30days": "Last 30 Days",
+    "morning": "Morning",
+    "evening": "Evening",
+    "noEntries": "No entries found for the selected criteria"
   },
   "settings": {
     "title": "Settings",
@@ -401,6 +414,7 @@
     "passwordsDoNotMatch": "New password and confirm password do not match",
     "profileUpdated": "Profile updated successfully",
     "failedToUpdateProfile": "Failed to update profile",
+    "unauthorized": "You are not authorized to perform this action",
     "enable2FA": "Enable Two-Factor Authentication",
     "disable2FA": "Disable Two-Factor Authentication",
     "installAuthenticatorApp": "Install Authenticator App",

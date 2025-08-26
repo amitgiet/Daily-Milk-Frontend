@@ -86,6 +86,10 @@ export default function Layout() {
         name: t("navigation.usersAndFarmers"),
         href: "/dairy-listing",
         icon: Building2,
+      },  {
+        name: t("navigation.dairyReports"),
+        href: "/dairy-reports",
+        icon: BarChart3,
       },
       {
         name: t("navigation.subscriptionPlans"),

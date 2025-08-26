@@ -17,7 +17,8 @@
     "role": "भूमिका",
     "subscription": "सदस्यता",
     "active": "सक्रिय",
-    "noActiveSubscription": "कोई सक्रिय सदस्यता नहीं"
+    "noActiveSubscription": "कोई सक्रिय सदस्यता नहीं",
+    "dairyReports": "डेयरी रिपोर्ट"
   },
   "roles": {
     "admin": "एडमिन",
@@ -340,6 +341,27 @@
     "generateReport": "रिपोर्ट तैयार करें",
     "downloadReport": "रिपोर्ट डाउनलोड करें"
   },
+  "dairyReports": {
+    "title": "डेयरी रिपोर्ट",
+    "description": "विस्तृत रिपोर्ट देखें और डेटा निर्यात करें",
+    "salesReport": "बिक्री रिपोर्ट",
+    "inventoryReport": "इन्वेंटरी रिपोर्ट",
+    "customerReport": "ग्राहक रिपोर्ट",
+    "dateRange": "तिथि सीमा",
+    "generateReport": "रिपोर्ट तैयार करें",
+    "downloadReport": "रिपोर्ट डाउनलोड करें",
+    "selectDateRange": "तिथि सीमा चुनें",
+    "selectShift": "शिफ्ट चुनें",
+    "selectFarmer": "किसान चुनें",
+    "allFarmers": "सभी किसान",
+    "today": "आज",
+    "yesterday": "कल",
+    "last7days": "पिछले 7 दिन",
+    "last30days": "पिछले 30 दिन",
+    "morning": "सुबह",
+    "evening": "शाम",
+    "noEntries": "चयनित मानदंडों के लिए कोई प्रविष्टि नहीं मिली"
+  },
   "settings": {
     "title": "सेटिंग्स",
     "subtitle": "अपनी डेयरी प्रबंधन प्रणाली को कॉन्फ़िगर करें",
@@ -401,6 +423,7 @@
     "passwordsDoNotMatch": "नया पासवर्ड और पुष्टि पासवर्ड मेल नहीं खाते",
     "profileUpdated": "प्रोफ़ाइल सफलतापूर्वक अपडेट किया गया",
     "failedToUpdateProfile": "प्रोफ़ाइल अपडेट करने में विफल",
+    "unauthorized": "आपको यह कार्य करने का अधिकार नहीं है",
     "enable2FA": "दो-कारक प्रमाणीकरण सक्षम करें",
     "disable2FA": "दो-कारक प्रमाणीकरण अक्षम करें",
     "installAuthenticatorApp": "प्रमाणीकरण ऐप इंस्टॉल करें",
