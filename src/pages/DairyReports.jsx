@@ -18,7 +18,7 @@ const DairyReports = () => {
     const [isFarmerUser, setIsFarmerUser] = useState(false);
     const [selectedFarmer, setSelectedFarmer] = useState("");
     const [selectedDate, setSelectedDate] = useState("today");
-    const [selectedShift, setSelectedShift] = useState("morning");
+    const [selectedShift, setSelectedShift] = useState("all");
     const [farmerList, setFarmerList] = useState([]);
 
     const getDateRange = (dateType) => {
@@ -51,9 +51,10 @@ const DairyReports = () => {
             const endDate = selectedDate === "today" || selectedDate === "yesterday" 
                 ? startDate 
                 : new Date().toISOString().split('T')[0];
+            const selectedShiftNEW = selectedShift === "all" ? null : selectedShift;
             const selectedFarmerId = selectedFarmer === "all" ? null : selectedFarmer;
             const response = await apiCall(
-                allRoutes.milkCollection.list(selectedFarmerId, null, null, selectedShift), 
+                allRoutes.milkCollection.list(selectedFarmerId, null, null, selectedShiftNEW), 
                 "get"
             );
             
@@ -92,7 +93,7 @@ const DairyReports = () => {
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">{t("dairyReports.title")}</h1>
                 <div className="flex items-center gap-2">
-                    <Select value={selectedDate} onValueChange={setSelectedDate}>
+                    {/* <Select value={selectedDate} onValueChange={setSelectedDate}>
                         <SelectTrigger className="w-40">
                             <SelectValue placeholder={t("dairyReports.selectDateRange")} />
                         </SelectTrigger>
@@ -110,12 +111,13 @@ const DairyReports = () => {
                                 {t("dairyReports.last30days")}
                             </SelectItem>
                         </SelectContent>
-                    </Select>
+                    </Select> */}
                     <Select value={selectedShift} onValueChange={setSelectedShift}>
                         <SelectTrigger className="w-32">
                             <SelectValue placeholder={t("dairyReports.selectShift")} />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem value="all">{t("dairyReports.allShifts")}</SelectItem>
                             <SelectItem value="morning">
                                 {t("dairyReports.morning")}
                             </SelectItem>
