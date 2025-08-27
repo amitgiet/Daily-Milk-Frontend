@@ -7,6 +7,9 @@ import { useEffect, useState } from 'react';
 import { allRoutes } from '../lib/apiRoutes';
 import { apiCall } from '../lib/apiCall';
 import { Input } from '../components/ui/input';
+import { format } from "date-fns";
+import { isValid } from 'date-fns';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const DairyReports = () => {
@@ -17,57 +20,35 @@ const DairyReports = () => {
     const [canManageMilk, setCanManageMilk] = useState(false);
     const [isFarmerUser, setIsFarmerUser] = useState(false);
     const [selectedFarmer, setSelectedFarmer] = useState("");
-    const [selectedDate, setSelectedDate] = useState("today");
     const [selectedShift, setSelectedShift] = useState("all");
     const [farmerList, setFarmerList] = useState([]);
-
-    const getDateRange = (dateType) => {
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        switch (dateType) {
-            case "today":
-                return today.toISOString().split('T')[0];
-            case "yesterday":
-                return yesterday.toISOString().split('T')[0];
-            case "last7days":
-                const last7Days = new Date(today);
-                last7Days.setDate(last7Days.getDate() - 7);
-                return last7Days.toISOString().split('T')[0];
-            case "last30days":
-                const last30Days = new Date(today);
-                last30Days.setDate(last30Days.getDate() - 30);
-                return last30Days.toISOString().split('T')[0];
-            default:
-                return today.toISOString().split('T')[0];
-        }
-    };
+    const [startDate, setStartDate] = useState(new Date());
+    const [endDate, setEndDate] = useState(new Date());
 
     const fetchMilkEntries = async () => {
         setMilkLoading(true);
         try {
-            const startDate = getDateRange(selectedDate);
-            const endDate = selectedDate === "today" || selectedDate === "yesterday" 
-                ? startDate 
-                : new Date().toISOString().split('T')[0];
+            const formattedStart = startDate ? format(startDate, "yyyy-MM-dd") : null;
+            const formattedEnd = endDate ? format(endDate, "yyyy-MM-dd") : null;
             const selectedShiftNEW = selectedShift === "all" ? null : selectedShift;
             const selectedFarmerId = selectedFarmer === "all" ? null : selectedFarmer;
+
             const response = await apiCall(
-                allRoutes.milkCollection.list(selectedFarmerId, null, null, selectedShiftNEW), 
+                allRoutes.milkCollection.list(selectedFarmerId, formattedStart, formattedEnd, selectedShiftNEW),
                 "get"
             );
-            
+
             if (response.success) {
                 setMilkEntries(response.data.data || []);
             }
         } catch (error) {
-            console.error('Error fetching milk entries:', error);
+            console.error("Error fetching milk entries:", error);
             setMilkEntries([]);
         } finally {
             setMilkLoading(false);
         }
     };
+
 
     const getFarmerList = async () => {
         try {
@@ -82,36 +63,36 @@ const DairyReports = () => {
 
     useEffect(() => {
         fetchMilkEntries();
-    }, [selectedFarmer, selectedDate, selectedShift]);
+    }, [selectedFarmer, startDate, endDate, selectedShift]);
 
     useEffect(() => {
         getFarmerList();
     }, []);
 
+    console.log(startDate, endDate);
     return (
         <div className="p-6 space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">{t("dairyReports.title")}</h1>
                 <div className="flex items-center gap-2">
-                    {/* <Select value={selectedDate} onValueChange={setSelectedDate}>
-                        <SelectTrigger className="w-40">
-                            <SelectValue placeholder={t("dairyReports.selectDateRange")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="today">
-                                {t("dairyReports.today")} ({new Date().toLocaleDateString()})
-                            </SelectItem>
-                            <SelectItem value="yesterday">
-                                {t("dairyReports.yesterday")}
-                            </SelectItem>
-                            <SelectItem value="last7days">
-                                {t("dairyReports.last7days")}
-                            </SelectItem>
-                            <SelectItem value="last30days">
-                                {t("dairyReports.last30days")}
-                            </SelectItem>
-                        </SelectContent>
-                    </Select> */}
+                    <Input
+                        type="date"
+                        value={startDate && isValid(startDate) ? format(startDate, "yyyy-MM-dd") : ""}
+                        onChange={(e) =>
+                            setStartDate(e.target.value ? new Date(e.target.value) : null)
+                        }
+                        className="w-40"
+                    />
+
+                    {/* To Date */}
+                    <Input
+                        type="date"
+                        value={endDate && isValid(endDate) ? format(endDate, "yyyy-MM-dd") : ""}
+                        onChange={(e) =>
+                            setEndDate(e.target.value ? new Date(e.target.value) : null)
+                        }
+                        className="w-40"
+                    />
                     <Select value={selectedShift} onValueChange={setSelectedShift}>
                         <SelectTrigger className="w-32">
                             <SelectValue placeholder={t("dairyReports.selectShift")} />
@@ -141,7 +122,7 @@ const DairyReports = () => {
                     </Select>
                 </div>
             </div>
-            
+
             <div className="">
                 <Card>
                     <CardHeader>

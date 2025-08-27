@@ -21,21 +21,23 @@ export const allRoutes = {
     list: (farmerId: string | number = "", startDate?: string, endDate?: string, shift?: string) => {
       let url = "/admin/milk/list";
       const params: string[] = [];
-    
+
       if (farmerId) {
         params.push(`farmerId=${farmerId}`);
       }
-      if (startDate && endDate) {
-        params.push(`startDate=${startDate}`, `endDate=${endDate}`);
-      }
+      if (startDate)
+        params.push(`startDate=${startDate}`);
+      if (endDate)
+        params.push(`endDate=${endDate}`);
+
       if (shift) {
         params.push(`shift=${shift}`);
       }
-    
+
       if (params.length > 0) {
         url += "?" + params.join("&");
       }
-    
+
       return url;
     },
     get: (id: string | number) => `/admin/milk/${id}`,
