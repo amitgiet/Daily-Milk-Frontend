@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Milk, User, Phone, Hash } from "lucide-react";
+import { Milk, User, Phone, Hash, Home } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import Logo from "../pages/pnglogo.png"
+import { toast } from "sonner";
 
 const signupSchema = z.object({
   name: z.string().min(2, "Full name must be at least 2 characters"),
@@ -20,6 +21,7 @@ const signupSchema = z.object({
   referralCode: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
+  village: z.string().min(2, "Village must be at least 2 characters"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -50,10 +52,10 @@ export default function Signup() {
     setSuccess("");
 
     try {
-      const success = await registerUser(data);
+      const success = await registerUser(data.name, data.phone, data.password, data.village);
       
       if (success) {
-        setSuccess("Account created successfully! Please check your email for verification.");
+        toast.success("Account created successfully! Please login to continue.");
         
         // Reset form
         reset();
@@ -133,7 +135,7 @@ export default function Signup() {
                </div>
 
               {/* Referral Code */}
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label htmlFor="referralCode" className="flex items-center gap-2">
                   <Hash className="h-4 w-4" />
                   {t('signup.referralCode')} ({t('signup.optional')})
@@ -143,7 +145,24 @@ export default function Signup() {
                   placeholder={t('signup.referralCodePlaceholder')}
                   {...register("referralCode")}
                 />
-              </div>
+              </div> */}
+
+              <div className="space-y-2">
+                 <Label htmlFor="village" className="flex items-center gap-2">
+                   <Home className="h-4 w-4" />
+                   {t('signup.village')} *
+                 </Label>
+                 <Input
+                   id="village"
+                   type="text"
+                   placeholder={t('signup.villagePlaceholder')}
+                   {...register("village")}
+                   className={errors.village ? "border-destructive" : ""}
+                 />
+                 {errors.village && (
+                   <p className="text-sm text-destructive">{errors.village.message}</p>
+                 )}
+               </div>
 
               {/* Password */}
               <div className="space-y-2">

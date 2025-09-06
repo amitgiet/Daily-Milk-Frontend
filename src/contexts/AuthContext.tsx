@@ -10,7 +10,7 @@ interface AuthContextType {
   hasSubscription: boolean;
   dairySubscription: DairySubscription | null;
   login: (phone: string, password: string) => Promise<boolean>;
-  register: (name: string, phone: string, password: string, referralCode?: string) => Promise<boolean>;
+  register: (name: string, phone: string, password: string, village: string) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   forgotPassword: (phone: string) => Promise<boolean>;
@@ -148,32 +148,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (name: string, phone: string, password: string, referralCode?: string): Promise<boolean> => {
+  const register = async (name: string, phone: string, password: string, village: string): Promise<boolean> => {
     try {
+      console.log(name, phone, password, village);
       const data: Record<string, string> = { name, phone, password };
-      if (referralCode) {
-        data.referralCode = referralCode;
+      if (village) {
+        data.village = village;
       }
-      
       const response = await apiCall(allRoutes.auth.register, 'post', data) as ApiResponse<RegisterResponse>;
-      if (response.success && response.data?.accessToken) {
-        localStorage.setItem('authToken', response.data.accessToken);
-        localStorage.setItem('isAuthenticated', 'true');
-        
-        // Set user with roleId
-        const userData = response.data.user || { id: 0, name, phone, dairyId: 0, roleId: 1 };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        // Set subscription information (new users don't have subscription)
-        setHasSubscription(false);
-        setDairySubscription(null);
-        
-        // Store subscription data in localStorage
-        localStorage.setItem('hasSubscription', JSON.stringify(false));
-        localStorage.setItem('dairySubscription', JSON.stringify(null));
-        
-        setIsAuthenticated(true);
+      console.log(response);
+      if (response.success) {
         return true;
       }
       return false;
