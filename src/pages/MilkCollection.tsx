@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -37,6 +38,7 @@ import { allRoutes } from "../lib/apiRoutes";
 import { useAuth } from "../contexts/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import Receipt from "../components/Reciept";
+import { useParams } from "react-router-dom";
 
 interface MilkEntry {
   id: number;
@@ -65,6 +67,21 @@ interface Farmer {
 const MilkCollection: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const dairyId = searchParams.get('dairyId');
+  const [selectedDairyId, setSelectedDairyId] = useState<number | null>(null);
+  
+  // Convert dairyId from string to number and set state
+  useEffect(() => {
+    if (dairyId) {
+      const dairyIdNumber = parseInt(dairyId, 10);
+      if (!isNaN(dairyIdNumber)) {
+        setSelectedDairyId(dairyIdNumber);
+        console.log('Dairy ID from query params:', dairyIdNumber);
+      }
+    }
+  }, [dairyId]);
+  
   const {
     isFarmerUser,
     isAdminUser,
@@ -88,7 +105,6 @@ const MilkCollection: React.FC = () => {
   const [receiptData, setReceiptData] = useState<any>(null);
   const [savedMilkEntry, setSavedMilkEntry] = useState<any>(null);
 
-  console.log(receiptData);
   // Fetch farmers list (only for admin/dairy users)
   const {
     data: farmersData,
@@ -116,13 +132,13 @@ const MilkCollection: React.FC = () => {
           farmerId = match[1];
         }
       }
-
       // Call the list function with proper parameters
       const url = allRoutes.milkCollection.list(
         farmerId,
         undefined,
         undefined,
-        selectedShift === "" ? undefined : selectedShift
+        selectedShift === "" ? undefined : selectedShift,
+        dairyId != undefined ? dairyId : undefined
       );
 
       return apiCall(url, "get");
@@ -406,11 +422,18 @@ const MilkCollection: React.FC = () => {
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{t("milkCollection.title")}</h1>
-        {isFarmerUser && (
-          <Badge variant="secondary" className="text-sm">
-            {t("milkCollection.viewingOwnData")}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {selectedDairyId && (
+            <Badge variant="outline" className="text-sm">
+              {t("milkCollection.selectedDairy")}: {selectedDairyId}
+            </Badge>
+          )}
+          {isFarmerUser && (
+            <Badge variant="secondary" className="text-sm">
+              {t("milkCollection.viewingOwnData")}
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Milk Entry Form - Only show for admin/dairy users */}

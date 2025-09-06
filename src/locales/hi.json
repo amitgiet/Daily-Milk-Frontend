@@ -158,7 +158,13 @@
     "profit": "लाभ",
     "noMilkCollectionToday": "आज के लिए कोई दूध संग्रह नहीं",
     "noLowStockItems": "कोई कम स्टॉक आइटम नहीं",
-    "noRecentOrders": "कोई हाल का ऑर्डर नहीं"
+    "noRecentOrders": "कोई हाल का ऑर्डर नहीं",
+    "myDairies": "मेरी डेयरी",
+    "myDairiesDescription": "आपके खाते से जुड़ी डेयरी",
+    "noDairiesFound": "आपके खाते के लिए कोई डेयरी नहीं मिली",
+    "milkCollectionForDairy": "चयनित डेयरी के लिए दूध संग्रह",
+    "milkCollectionForDairyDescription": "चयनित डेयरी के लिए अपना दूध संग्रह इतिहास देखें",
+    "noMilkCollectionForDairy": "इस डेयरी के लिए कोई दूध संग्रह नहीं मिला"
   },
   "inventory": {
     "title": "इन्वेंटरी प्रबंधन",
@@ -538,7 +544,8 @@
     "myAverageFat": "मेरी औसत वसा %",
     "myCollectionList": "मेरी संग्रह सूची",
     "noMyEntries": "आपके लिए कोई दूध प्रविष्टि नहीं मिली",
-    "receipt": "दूध संग्रह रसीद"
+    "receipt": "दूध संग्रह रसीद",
+    "selectedDairy": "चयनित डेयरी"
   },
   "dairyRates": {
     "title": "डेयरी दर प्रबंधन",

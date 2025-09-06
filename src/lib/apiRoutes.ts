@@ -12,13 +12,14 @@ export const allRoutes = {
   farmers: {
     getFarmers: '/admin/farmers',
     addFarmer: '/admin/farmers',
+    getFarmerDairies: (id: string | number) => `/admin/farmers/${id}/dairies`,
     updateFarmer: (id: string | number) => `/admin/farmers/${id}`,
     getFarmer: (id: string | number) => `/admin/farmers/${id}`,
     delete: (id: string | number) => `/admin/farmers/${id}`
   },
   milkCollection: {
     collect: '/admin/milk/collect',
-    list: (farmerId: string | number = "", startDate?: string, endDate?: string, shift?: string) => {
+    list: (farmerId: string | number = "", startDate?: string, endDate?: string, shift?: string, dairyId?: string | number) => {
       let url = "/admin/milk/list";
       const params: string[] = [];
 
@@ -33,6 +34,10 @@ export const allRoutes = {
       if (shift) {
         params.push(`shift=${shift}`);
       }
+
+      if (dairyId) {
+        params.push(`dairyId=${dairyId}`);
+      } 
 
       if (params.length > 0) {
         url += "?" + params.join("&");

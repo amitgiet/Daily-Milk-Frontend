@@ -4,10 +4,10 @@ import { StatsCard } from "@/components/ui/StatsCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { 
-  Package, 
-  Users, 
-  ShoppingCart, 
+import {
+  Package,
+  Users,
+  ShoppingCart,
   TrendingUp,
   AlertTriangle,
   Milk,
@@ -21,17 +21,23 @@ import { useQuery } from "@/hooks/useApi";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { DashboardStats } from "@/types/dashboard";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-
+  const { user } = useAuth();
+  const userRole = user?.roleId || 1;
+  console.log(userRole);
+  const [farmerDairies, setFarmerDairies] = useState<any[]>([]);
+  const [selectedDairyId, setSelectedDairyId] = useState<number | null>(null);
   // Fetch dashboard stats
-  const { 
-    data: dashboardStats, 
-    loading: statsLoading, 
+  const {
+    data: dashboardStats,
+    loading: statsLoading,
     error: statsError,
-    execute: fetchStats 
+    execute: fetchStats
   } = useQuery(
     () => apiCall(allRoutes.dashboard.stats, 'get'),
     {
@@ -44,7 +50,7 @@ export default function Dashboard() {
 
   // Extract stats from API response
   const stats: DashboardStats = dashboardStats?.data?.data || {};
-  
+
   // Format currency values
   const formatCurrency = (amount?: number) => {
     if (!amount) return '₹0';
@@ -62,36 +68,42 @@ export default function Dashboard() {
     return new Intl.NumberFormat('en-IN').format(num);
   };
 
-  const handleAddNewProduct = () => {
-    navigate('/inventory');
-    // Add a slight delay to ensure navigation completes, then trigger the add dialog
-    setTimeout(() => {
-      // This will be handled by the inventory page to open the add dialog
-      const event = new CustomEvent('openAddDialog');
-      window.dispatchEvent(event);
-    }, 100);
-  };
+  // Fetch farmer dairies (only for farmer users)
+  const {
+    data: farmerDairiesData,
+    loading: farmerDairiesLoading,
+    execute: fetchFarmerDairies,
+  } = useQuery(
+    () => apiCall(allRoutes.farmers.getFarmerDairies(user?.id), "get"),
+    {
+      autoExecute: userRole === 3 && !!user?.id, // Only fetch if user is farmer and has ID
+    }
+  );
 
-  const handleDailyReport = () => {
-    navigate('/reports');
-  };
-
-  const handleViewOrderDetails = () => {
-    navigate('/orders');
-  };
+  useEffect(() => {
+    if (farmerDairiesData?.data) {
+      setFarmerDairies(farmerDairiesData.data);
+    }
+  }, [farmerDairiesData]);
 
   const handleRefreshStats = () => {
     fetchStats();
   };
+
+
+  const handleDairyClick = (dairyId: number) => {
+    setSelectedDairyId(dairyId);
+     navigate(`/milk-collection?dairyId=${dairyId}`);
+  };  
 
   return (
     <div className="p-6 space-y-6">
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-primary-glow">
         <div className="absolute inset-0">
-          <img 
-            src={dairyHero} 
-            alt="Dairy Farm" 
+          <img
+            src={dairyHero}
+            alt="Dairy Farm"
             className="w-full h-full object-cover opacity-20"
           />
         </div>
@@ -124,188 +136,250 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+      {userRole !== 3 && <>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatsCard
+            title={t('dashboard.totalProducts')}
+            value={statsLoading ? "..." : formatNumber(stats.totalProducts)}
+            change={t('dashboard.thisWeek')}
+            changeType="positive"
+            icon={Package}
+            gradient
+          />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard
-          title={t('dashboard.totalProducts')}
-          value={statsLoading ? "..." : formatNumber(stats.totalProducts)}
-          change={t('dashboard.thisWeek')}
-          changeType="positive"
-          icon={Package}
-          gradient
-        />
+          <StatsCard
+            title={t('dashboard.ordersToday')}
+            value={statsLoading ? "..." : formatNumber(stats.todayOrders)}
+            change={t('dashboard.fromYesterday')}
+            changeType="positive"
+            icon={ShoppingCart}
+            gradient
+          />
 
-        <StatsCard
-          title={t('dashboard.ordersToday')}
-          value={statsLoading ? "..." : formatNumber(stats.todayOrders)}
-          change={t('dashboard.fromYesterday')}
-          changeType="positive"
-          icon={ShoppingCart}
-          gradient
-        />
+          <StatsCard
+            title={t('dashboard.revenueToday')}
+            value={statsLoading ? "..." : formatCurrency(stats.todayRevenue)}
+            change="+15.3%"
+            changeType="positive"
+            icon={TrendingUp}
+            gradient
+          />
 
-        <StatsCard
-          title={t('dashboard.revenueToday')}
-          value={statsLoading ? "..." : formatCurrency(stats.todayRevenue)}
-          change="+15.3%"
-          changeType="positive"
-          icon={TrendingUp}
-          gradient
-        />
+          <StatsCard
+            title={t('dashboard.todayMilkCollection')}
+            value={statsLoading ? "..." : `${formatNumber(stats.todayMilkCollection)}L`}
+            change={t('dashboard.fromYesterday')}
+            changeType="positive"
+            icon={Milk}
+            gradient
+          />
+        </div>
 
-        <StatsCard
-          title={t('dashboard.todayMilkCollection')}
-          value={statsLoading ? "..." : `${formatNumber(stats.todayMilkCollection)}L`}
-          change={t('dashboard.fromYesterday')}
-          changeType="positive"
-          icon={Milk}
-          gradient
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Milk Collection */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Milk className="h-5 w-5 text-primary" />
-              {t('dashboard.todaysMilkCollection')}
-            </CardTitle>
-            <CardDescription>
-              {t('dashboard.milkCollectionDescription')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {statsLoading ? (
-              <div className="text-center py-8">{t('common.loading')}</div>
-            ) : stats.todayMilkCollectionDetails && stats.todayMilkCollectionDetails.length > 0 ? (
-              <div className="space-y-4">
-                {stats.todayMilkCollectionDetails.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium text-foreground">{item.supplier}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {t('dashboard.morning')}: {item.morning}L • {t('dashboard.evening')}: {item.evening}L
-                      </p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Today's Milk Collection */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Milk className="h-5 w-5 text-primary" />
+                {t('dashboard.todaysMilkCollection')}
+              </CardTitle>
+              <CardDescription>
+                {t('dashboard.milkCollectionDescription')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <div className="text-center py-8">{t('common.loading')}</div>
+              ) : stats.todayMilkCollectionDetails && stats.todayMilkCollectionDetails.length > 0 ? (
+                <div className="space-y-4">
+                  {stats.todayMilkCollectionDetails.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                      <div>
+                        <p className="font-medium text-foreground">{item.supplier}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t('dashboard.morning')}: {item.morning}L • {t('dashboard.evening')}: {item.evening}L
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary">{item.total}L</p>
+                        <p className="text-sm text-muted-foreground">{t('dashboard.total')}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-primary">{item.total}L</p>
-                      <p className="text-sm text-muted-foreground">{t('dashboard.total')}</p>
+                  ))}
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-foreground">{t('dashboard.totalCollection')}:</span>
+                      <span className="text-xl font-bold text-primary">
+                        {stats.todayMilkCollectionDetails.reduce((sum, item) => sum + item.total, 0)}L
+                      </span>
                     </div>
-                  </div>
-                ))}
-                <div className="pt-4 border-t border-border">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-foreground">{t('dashboard.totalCollection')}:</span>
-                    <span className="text-xl font-bold text-primary">
-                      {stats.todayMilkCollectionDetails.reduce((sum, item) => sum + item.total, 0)}L
-                    </span>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                {t('dashboard.noMilkCollectionToday')}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  {t('dashboard.noMilkCollectionToday')}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Low Stock Alert */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-warning">
-              <AlertTriangle className="h-5 w-5" />
-              {t('dashboard.lowStockAlert')}
-            </CardTitle>
-            <CardDescription>
-              {t('dashboard.lowStockDescription')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {statsLoading ? (
-              <div className="text-center py-8">{t('common.loading')}</div>
-            ) : stats.lowStockAlerts && stats.lowStockAlerts.length > 0 ? (
-              <div className="space-y-3">
-                {stats.lowStockAlerts.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-warning/10 border border-warning/20">
-                    <div>
-                      <p className="font-medium text-foreground">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {t('dashboard.min')}: {item.minimum} {item.unit}
-                      </p>
-                    </div>
-                    <Badge variant="destructive">
-                      {item.current} {item.unit}
-                    </Badge>
-                  </div>
-                ))}
-                <Button className="w-full mt-4" variant="outline" onClick={() => navigate('/inventory')}>
-                  {t('dashboard.viewAllStock')}
-                </Button>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                {t('dashboard.noLowStockItems')}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Orders */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            {t('dashboard.recentOrders')}
-          </CardTitle>
-          <CardDescription>
-            {t('dashboard.recentOrdersDescription')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {statsLoading ? (
-            <div className="text-center py-8">{t('common.loading')}</div>
-          ) : stats.recentOrders && stats.recentOrders.length > 0 ? (
-            <div className="space-y-4">
-              {stats.recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <p className="font-medium text-foreground">{order.id}</p>
-                      <Badge 
-                        variant={
-                          order.status === "delivered" ? "default" :
-                          order.status === "processing" ? "secondary" : "outline"
-                        }
-                      >
-                        {t(`orders.${order.status}`)}
+          {/* Low Stock Alert */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-warning">
+                <AlertTriangle className="h-5 w-5" />
+                {t('dashboard.lowStockAlert')}
+              </CardTitle>
+              <CardDescription>
+                {t('dashboard.lowStockDescription')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <div className="text-center py-8">{t('common.loading')}</div>
+              ) : stats.lowStockAlerts && stats.lowStockAlerts.length > 0 ? (
+                <div className="space-y-3">
+                  {stats.lowStockAlerts.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-warning/10 border border-warning/20">
+                      <div>
+                        <p className="font-medium text-foreground">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t('dashboard.min')}: {item.minimum} {item.unit}
+                        </p>
+                      </div>
+                      <Badge variant="destructive">
+                        {item.current} {item.unit}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">{order.customer}</p>
-                    <p className="text-sm text-foreground">{order.items}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">{order.time}</p>
-                    {order.total && (
-                      <p className="text-sm font-medium text-foreground">{formatCurrency(order.total)}</p>
-                    )}
-                    <Button variant="ghost" size="sm" className="mt-1" onClick={handleViewOrderDetails}>
-                      {t('dashboard.viewDetails')}
-                    </Button>
-                  </div>
+                  ))}
+                  <Button className="w-full mt-4" variant="outline" onClick={() => navigate('/inventory')}>
+                    {t('dashboard.viewAllStock')}
+                  </Button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              {t('dashboard.noRecentOrders')}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  {t('dashboard.noLowStockItems')}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Orders */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              {t('dashboard.recentOrders')}
+            </CardTitle>
+            <CardDescription>
+              {t('dashboard.recentOrdersDescription')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <div className="text-center py-8">{t('common.loading')}</div>
+            ) : stats.recentOrders && stats.recentOrders.length > 0 ? (
+              <div className="space-y-4">
+                {stats.recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <p className="font-medium text-foreground">{order.id}</p>
+                        <Badge
+                          variant={
+                            order.status === "delivered" ? "default" :
+                              order.status === "processing" ? "secondary" : "outline"
+                          }
+                        >
+                          {t(`orders.${order.status}`)}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{order.customer}</p>
+                      <p className="text-sm text-foreground">{order.items}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">{order.time}</p>
+                      {order.total && (
+                        <p className="text-sm font-medium text-foreground">{formatCurrency(order.total)}</p>
+                      )}
+                      <Button variant="ghost" size="sm" className="mt-1" onClick={() => navigate(`/dairy-reports?dairyId=${order.dairyId || ''}`)}>
+                        {t('dashboard.viewDetails')}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {t('dashboard.noRecentOrders')}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </>}
+      {userRole === 3 && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                {t('dashboard.myDairies')}
+              </CardTitle>
+              <CardDescription>
+                {t('dashboard.myDairiesDescription')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {farmerDairiesLoading ? (
+                <div className="text-center py-8">{t('common.loading')}</div>
+              ) : farmerDairies && farmerDairies.length > 0 ? (
+                <div className="space-y-4">
+                  {farmerDairies.map((farmerDairy: any, index: number) => (
+                    <div 
+                      key={index} 
+                      className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                        selectedDairyId === farmerDairy.dairyId 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => handleDairyClick(farmerDairy.dairyId)}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <Building2 className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="font-medium text-foreground">{farmerDairy.dairy?.name || 'Unknown Dairy'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Phone: {farmerDairy.dairy?.phone || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right space-y-2">
+                        <Badge variant={farmerDairy.isActive ? 'default' : 'secondary'}>
+                          {farmerDairy.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                        {farmerDairy.wallet && (
+                          <div className="text-sm">
+                            <p className="text-muted-foreground">Wallet Balance</p>
+                            <p className="font-medium text-green-600">₹{farmerDairy.wallet.balance}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  {t('dashboard.noDairiesFound')}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

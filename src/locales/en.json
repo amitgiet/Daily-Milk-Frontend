@@ -158,7 +158,13 @@
     "profit": "Profit",
     "noMilkCollectionToday": "No milk collection for today",
     "noLowStockItems": "No low stock items",
-    "noRecentOrders": "No recent orders"
+    "noRecentOrders": "No recent orders",
+    "myDairies": "My Dairies",
+    "myDairiesDescription": "Dairies associated with your account",
+    "noDairiesFound": "No dairies found for your account",
+    "milkCollectionForDairy": "Milk Collection for Selected Dairy",
+    "milkCollectionForDairyDescription": "View your milk collection history for the selected dairy",
+    "noMilkCollectionForDairy": "No milk collection found for this dairy"
   },
   "inventory": {
     "title": "Inventory Management",
@@ -529,7 +535,8 @@
     "myAverageFat": "My Avg Fat %",
     "myCollectionList": "My Collection List",
     "noMyEntries": "No milk entries found for you",
-    "receipt": "Milk Collection Receipt"
+    "receipt": "Milk Collection Receipt",
+    "selectedDairy": "Selected Dairy"
   },
   "dairyRates": {
     "title": "Dairy Rates Management",

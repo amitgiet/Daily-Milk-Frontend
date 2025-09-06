@@ -20,6 +20,7 @@ export interface RecentOrder {
   status: 'pending' | 'processing' | 'delivered' | 'cancelled';
   time: string;
   total?: number;
+  dairyId?: number;
 }
 
 export interface MilkCollectionDetail {
