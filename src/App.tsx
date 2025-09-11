@@ -22,6 +22,8 @@ import AdminSubscriptionPlans from "./pages/AdminSubscriptionPlans";
 import DairyListing from "./pages/DairyListing";
 import DairyReports from "./pages/DairyReports";
 import NotFound from "./pages/NotFound";
+import DiaryDispatch from "./pages/DiaryDispatch";
+import PaymentManagement from "./pages/PaymentManagement";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +62,8 @@ const App = () => (
               <Route path="subscription-plans" element={<SubscriptionPlans />} />
               <Route path="dairy-listing" element={<DairyListing />} />
               <Route path="admin-subscription-plans" element={<AdminSubscriptionPlans />} />
+              <Route path="diary-dispatch" element={<DiaryDispatch />} />
+              <Route path="payment-management" element={<PaymentManagement />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

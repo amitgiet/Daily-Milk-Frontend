@@ -37,7 +37,7 @@ export const allRoutes = {
 
       if (dairyId) {
         params.push(`dairyId=${dairyId}`);
-      } 
+      }
 
       if (params.length > 0) {
         url += "?" + params.join("&");
@@ -63,14 +63,58 @@ export const allRoutes = {
     recentActivity: '/admin/dashboard/recent-activity'
   },
   reports: {
+    milkDistribution: (farmerId: string | number = "", startDate?: string, endDate?: string, shift?: string, dairyId?: string | number) => {
+      let url = "/admin/milk/report";
+      const params: string[] = [];
+
+      if (farmerId) {
+        params.push(`farmerId=${farmerId}`);
+      }
+      if (startDate)
+        params.push(`startDate=${startDate}`);
+      if (endDate)
+        params.push(`endDate=${endDate}`);
+
+      if (shift) {
+        params.push(`shift=${shift}`);
+      }
+
+      if (dairyId) {
+        params.push(`dairyId=${dairyId}`);
+      }
+
+      if (params.length > 0) {
+        url += "?" + params.join("&");
+      }
+
+      return url;
+    },
     sales: '/admin/reports/sales',
     inventory: '/admin/reports/inventory',
     farmers: '/admin/reports/farmers',
     milkCollection: '/admin/reports/milk-collection'
   },
+  diaryDispatch: {
+    list: '/admin/milk-dispatches',
+    add: '/admin/milk-dispatches',
+    update: (id: string | number) => `/admin/milk-dispatches/${id}`,
+    delete: (id: string | number) => `/admin/milk-dispatches/${id}`
+  },
   dairy: {
     rates: '/admin/dairy/rates',
-    updateRates: '/admin/dairy/rates'
+    updateRates: '/admin/dairy/rates',
+    addFarmerPayments: '/admin/dairy/farmer-payments',
+    updateFarmerPayments: (id: string | number) => `/admin/dairy/farmer-payments/${id}`,
+    getFarmerPayments: (id: string | number, startDate?: string, endDate?: string) => {
+      let url = `/admin/dairy/farmer-payments/?`;
+      if (id)
+        url += `&farmerId=${id}`;
+      if (startDate)
+        url += `&startDate=${startDate}`;
+      if (endDate)
+        url += `&endDate=${endDate}`;
+      return url;
+    }
   },
   subscriptions: {
     list: '/admin/subscriptions',

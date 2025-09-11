@@ -19,6 +19,7 @@ import {
   Calculator,
   AlertTriangle,
   Building2,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,7 +87,7 @@ export default function Layout() {
         name: t("navigation.usersAndFarmers"),
         href: "/dairy-listing",
         icon: Building2,
-      },  {
+      }, {
         name: t("navigation.dairyReports"),
         href: "/dairy-reports",
         icon: BarChart3,
@@ -94,6 +95,16 @@ export default function Layout() {
       {
         name: t("navigation.subscriptionPlans"),
         href: "/subscription-plans",
+        icon: CreditCard,
+      },
+      {
+        name: t("navigation.diarydispatch"),
+        href: "/diary-dispatch",
+        icon: Truck,
+      },
+      {
+        name: t("navigation.paymentManagement"),
+        href: "/payment-management",
         icon: CreditCard,
       },
       {

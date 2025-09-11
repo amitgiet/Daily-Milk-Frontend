@@ -90,6 +90,14 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
     roles: [UserRole.ADMIN],
   },
 
+  // Diary Dispatch - Only admin and dairy can access
+  {
+    path: '/diary-dispatch',
+    permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    roles: [UserRole.ADMIN, UserRole.DAIRY],
+    requiresSubscription: true, // Dairy needs subscription to access
+  },
+
   // Dairy Listing - Only admin and dairy can access, farmers cannot
   {
     path: '/dairy-listing',
@@ -100,6 +108,14 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   {
     path: '/dairy-reports',
     permissions: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    roles: [UserRole.ADMIN, UserRole.DAIRY],
+    requiresSubscription: true, // Dairy needs subscription to access
+  },
+
+  // Payment Management - Only admin and dairy can access
+  {
+    path: '/payment-management',
+    permissions: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     roles: [UserRole.ADMIN, UserRole.DAIRY],
     requiresSubscription: true, // Dairy needs subscription to access
   },

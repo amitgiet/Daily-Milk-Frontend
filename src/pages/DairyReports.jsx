@@ -34,7 +34,7 @@ const DairyReports = () => {
             const selectedFarmerId = selectedFarmer === "all" ? null : selectedFarmer;
 
             const response = await apiCall(
-                allRoutes.milkCollection.list(selectedFarmerId, formattedStart, formattedEnd, selectedShiftNEW),
+                allRoutes.reports.milkDistribution(selectedFarmerId, formattedStart, formattedEnd, selectedShiftNEW),
                 "get"
             );
 

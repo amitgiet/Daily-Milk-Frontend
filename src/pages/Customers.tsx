@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2 } from "lucide-react";
+import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -87,13 +87,25 @@ const farmerSchema = z.object({
 
 type FarmerFormData = z.infer<typeof farmerSchema>;
 
+// Payment form schema
+const paymentSchema = z.object({
+  amount: z.number().min(1, "Amount must be greater than 0"),
+  paidAt: z.string().min(1, "Payment date is required"),
+  note: z.string().optional(),
+});
+
+type PaymentFormData = z.infer<typeof paymentSchema>;
+
 export default function Customers() {
   const { t } = useTranslation();
   const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingFarmer, setEditingFarmer] = useState<Farmer | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [selectedFarmerForPayment, setSelectedFarmerForPayment] = useState<Farmer | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   const {
     register,
@@ -106,6 +118,21 @@ export default function Customers() {
     defaultValues: {
       name: "",
       phone: "",
+    },
+  });
+
+  const {
+    register: registerPayment,
+    handleSubmit: handleSubmitPayment,
+    reset: resetPayment,
+    setValue: setPaymentValue,
+    formState: { errors: paymentErrors },
+  } = useForm<PaymentFormData>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: {
+      amount: 0,
+      paidAt: new Date().toISOString().split('T')[0],
+      note: "",
     },
   });
 
@@ -211,6 +238,50 @@ export default function Customers() {
     setShowAddDialog(false);
     setEditingFarmer(null);
     reset();
+  };
+
+  // Handle payment
+  const handlePayment = (farmer: Farmer) => {
+    setSelectedFarmerForPayment(farmer);
+    setPaymentValue("amount", 0);
+    setPaymentValue("paidAt", new Date().toISOString().split('T')[0]);
+    setPaymentValue("note", "");
+    setShowPaymentDialog(true);
+  };
+
+  // Handle payment submission
+  const handleSubmitPaymentForm = async (data: PaymentFormData) => {
+    if (!selectedFarmerForPayment) return;
+    
+    setPaymentSubmitting(true);
+    try {
+      const paymentData = {
+        farmerId: selectedFarmerForPayment.id,
+        amount: data.amount,
+        paidAt: data.paidAt,
+        note: data.note || "",
+      };
+
+      const response = await apiCall(allRoutes.dairy.addFarmerPayments, "post", paymentData);
+      if (response.success) {
+        toast.success(t("payments.paymentAdded"));
+        setShowPaymentDialog(false);
+        setSelectedFarmerForPayment(null);
+        resetPayment();
+      }
+    } catch (error) {
+      console.error("Failed to add payment:", error);
+      toast.error("Failed to add payment");
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
+  // Reset payment form when dialog closes
+  const handleClosePaymentDialog = () => {
+    setShowPaymentDialog(false);
+    setSelectedFarmerForPayment(null);
+    resetPayment();
   };
 
   return (
@@ -323,6 +394,89 @@ export default function Customers() {
         </DialogContent>
       </Dialog>
 
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              {t("payments.payFarmer")}
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={handleSubmitPayment(handleSubmitPaymentForm)}
+            className="space-y-4"
+          >
+            {selectedFarmerForPayment && (
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="text-sm text-muted-foreground">Farmer:</p>
+                <p className="font-medium">{selectedFarmerForPayment.name}</p>
+                <p className="text-sm text-muted-foreground">{selectedFarmerForPayment.phone}</p>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="amount">{t("payments.amount")} *</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                {...registerPayment("amount", { valueAsNumber: true })}
+                placeholder={t("payments.amountPlaceholder")}
+              />
+              {paymentErrors.amount && (
+                <p className="text-sm text-destructive">
+                  {paymentErrors.amount.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paidAt">{t("payments.paidAt")} *</Label>
+              <Input
+                id="paidAt"
+                type="date"
+                {...registerPayment("paidAt")}
+              />
+              {paymentErrors.paidAt && (
+                <p className="text-sm text-destructive">
+                  {paymentErrors.paidAt.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="note">{t("payments.note")}</Label>
+              <Input
+                id="note"
+                {...registerPayment("note")}
+                placeholder={t("payments.notePlaceholder")}
+              />
+              {paymentErrors.note && (
+                <p className="text-sm text-destructive">
+                  {paymentErrors.note.message}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClosePaymentDialog}
+              >
+                {t("payments.cancel")}
+              </Button>
+              <Button type="submit" disabled={paymentSubmitting}>
+                {paymentSubmitting
+                  ? t("payments.saving")
+                  : t("payments.addPayment")}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Farmers List */}
       {loading ? (
         <div className="text-center py-8">
@@ -343,6 +497,14 @@ export default function Customers() {
                       onClick={() => handleEditFarmer(farmer)}
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handlePayment(farmer)}
+                      title={t("payments.payFarmer")}
+                    >
+                      <CreditCard className="h-4 w-4" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
