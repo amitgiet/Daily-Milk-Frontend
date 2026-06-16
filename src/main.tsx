@@ -4,6 +4,14 @@ import './index.css'
 import './i18n'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { registerSW } from "virtual:pwa-register";
+
+
+
+registerSW({
+  immediate: true,
+});
+
 
 createRoot(document.getElementById("root")!).render(
   <>

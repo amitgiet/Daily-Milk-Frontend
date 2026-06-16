@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Package, User, Calendar, CalendarIcon, Search, Filter, X } from "lucide-react";
+import { Plus, Package, User, Calendar, Search, Filter, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,14 +14,13 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/dateFormat";
+import { DateInput } from "@/components/ui/date-input";
+import { format, parseISO } from "date-fns";
 
 const initialOrdersData = [
   {
@@ -68,8 +67,6 @@ export default function Orders() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingOrder, setEditingOrder] = useState<typeof initialOrdersData[0] | null>(null);
   const [viewingOrder, setViewingOrder] = useState<typeof initialOrdersData[0] | null>(null);
-  const [orderDateOpen, setOrderDateOpen] = useState(false);
-  const [deliveryDateOpen, setDeliveryDateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [filters, setFilters] = useState({
@@ -128,8 +125,6 @@ export default function Orders() {
     }
     setShowAddDialog(false);
     setEditingOrder(null);
-    setOrderDateOpen(false);
-    setDeliveryDateOpen(false);
     reset();
   };
 
@@ -148,8 +143,6 @@ export default function Orders() {
   const handleCloseDialog = () => {
     setShowAddDialog(false);
     setEditingOrder(null);
-    setOrderDateOpen(false);
-    setDeliveryDateOpen(false);
     reset();
   };
 
@@ -268,33 +261,15 @@ export default function Orders() {
               </div>
               <div className="space-y-2">
                 <Label>Order Date *</Label>
-                <Popover open={orderDateOpen} onOpenChange={setOrderDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedOrderDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedOrderDate ? format(selectedOrderDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-50" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedOrderDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setValue("date", date);
-                          setOrderDateOpen(false);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateInput
+                  value={selectedOrderDate ? format(selectedOrderDate, "yyyy-MM-dd") : ""}
+                  onChange={(value) => {
+                    if (value) {
+                      setValue("date", parseISO(value), { shouldValidate: true });
+                    }
+                  }}
+                  required
+                />
                 {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
               </div>
               <div className="space-y-2 md:col-span-2">
@@ -309,33 +284,15 @@ export default function Orders() {
               </div>
               <div className="space-y-2">
                 <Label>Delivery Date *</Label>
-                <Popover open={deliveryDateOpen} onOpenChange={setDeliveryDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedDeliveryDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDeliveryDate ? format(selectedDeliveryDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-50" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={selectedDeliveryDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setValue("deliveryDate", date);
-                          setDeliveryDateOpen(false);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateInput
+                  value={selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : ""}
+                  onChange={(value) => {
+                    if (value) {
+                      setValue("deliveryDate", parseISO(value), { shouldValidate: true });
+                    }
+                  }}
+                  required
+                />
                 {errors.deliveryDate && <p className="text-sm text-destructive">{errors.deliveryDate.message}</p>}
               </div>
               <div className="space-y-2">
@@ -378,11 +335,11 @@ export default function Orders() {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">Order Date</h3>
-                    <p className="text-base">{viewingOrder.date}</p>
+                    <p className="text-base">{formatDisplayDate(viewingOrder.date)}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">Delivery Date</h3>
-                    <p className="text-base">{viewingOrder.deliveryDate}</p>
+                    <p className="text-base">{formatDisplayDate(viewingOrder.deliveryDate)}</p>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -629,10 +586,10 @@ export default function Orders() {
                         {order.customer}
                       </div>
                     </TableCell>
-                    <TableCell>{order.date}</TableCell>
+                    <TableCell>{formatDisplayDate(order.date)}</TableCell>
                     <TableCell>{order.items}</TableCell>
                     <TableCell className="font-medium">₹{order.total}</TableCell>
-                    <TableCell>{order.deliveryDate}</TableCell>
+                    <TableCell>{formatDisplayDate(order.deliveryDate)}</TableCell>
                     <TableCell>{getStatusBadge(order.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

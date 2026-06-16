@@ -15,6 +15,7 @@ import {
   Milk,
   LogOut,
   ChevronDown,
+  ChevronRight,
   CreditCard,
   Calculator,
   AlertTriangle,
@@ -33,10 +34,16 @@ import {
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
-import { canAccessRoute, getRoleName, isSubscriptionActive } from "@/lib/permissions";
+import {
+  canAccessRoute,
+  getRoleName,
+  isSubscriptionActive,
+} from "@/lib/permissions";
 
+import logo from '../assets/logo.png';
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [subscriptionMenuOpen, setSubscriptionMenuOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -46,14 +53,21 @@ export default function Layout() {
   const userRole = user?.roleId || 1;
 
   // Check if user has active subscription
-  const hasActiveSubscription = hasSubscription || isSubscriptionActive(dairySubscription);
+  const hasActiveSubscription =
+    hasSubscription || isSubscriptionActive(dairySubscription);
+  const dashboardHref =
+    userRole === 1
+      ? "/admin-dashboard"
+      : userRole === 2
+        ? "/dairy-dashboard"
+        : "/";
 
   // Define navigation items based on subscription status
   const getNavigationItems = () => {
     // Special handling for roleId 3 (Farmer) - hide subscription plans, show milk collection
     if (userRole === 3) {
       return [
-        { name: t("navigation.dashboard"), href: "/", icon: Home },
+        { name: t("navigation.dashboard"), href: dashboardHref, icon: Home },
         {
           name: t("navigation.milkCollection"),
           href: "/milk-collection",
@@ -64,7 +78,8 @@ export default function Layout() {
     }
 
     // If user doesn't have subscription and is not admin, only show subscription plans
-    if (!hasActiveSubscription && userRole !== 1) { // 1 is ADMIN role
+    if (!hasActiveSubscription && userRole !== 1) {
+      // 1 is ADMIN role
       return [
         {
           name: t("navigation.subscriptionPlans"),
@@ -76,7 +91,7 @@ export default function Layout() {
 
     // If user has subscription or is admin, show all available navigation
     const allNavigation = [
-      { name: t("navigation.dashboard"), href: "/", icon: Home },
+      { name: t("navigation.dashboard"), href: dashboardHref, icon: Home },
       {
         name: t("navigation.milkCollection"),
         href: "/milk-collection",
@@ -84,11 +99,27 @@ export default function Layout() {
       },
       { name: t("navigation.customers"), href: "/customers", icon: User },
       {
-        name: t("navigation.usersAndFarmers"),
+        name: t("dairyListing.dairies", "Dairies"),
         href: "/dairy-listing",
         icon: Building2,
-      }, {
-        name: t("navigation.dairyReports"),
+      },
+      {
+        name: t("dairyListing.farmers", "Farmers"),
+        href: "/farmer-listing",
+        icon: User,
+      },
+      /* {
+        name: t("navigation.dairySubscriptions"),
+        href: "/dairy-subscriptions",
+        icon: Package,
+      }, */
+      {
+        name: t("navigation.purchasedSubscriptions"),
+        href: "/purchased-subscriptions",
+        icon: Package,
+      },
+      {
+        name: t("navigation.milkReports"),
         href: "/dairy-reports",
         icon: BarChart3,
       },
@@ -112,21 +143,129 @@ export default function Layout() {
         href: "/admin-subscription-plans",
         icon: CreditCard,
       },
+      {
+        name: t("navigation.pendingSubscriptions"),
+        href: "/pending-subscriptions",
+        icon: Users,
+      },
       { name: t("navigation.settings"), href: "/settings", icon: Settings },
     ];
 
     // Filter navigation based on user role and subscription
-    return allNavigation.filter(item => canAccessRoute(userRole, item.href, hasActiveSubscription));
+    return allNavigation.filter((item) => {
+      if (
+        userRole === 1 &&
+        ["/milk-collection", "/customers", "/diary-dispatch", "/subscription-plans"].includes(
+          item.href,
+        )
+      ) {
+        return false;
+      }
+
+      return canAccessRoute(userRole, item.href, hasActiveSubscription);
+    });
   };
 
   const navigation = getNavigationItems();
+  const subscriptionHrefs = [
+    "/subscription-plans",
+    "/dairy-subscriptions",
+    "/purchased-subscriptions",
+    "/admin-subscription-plans",
+    "/pending-subscriptions",
+  ];
+  const subscriptionItems = navigation.filter((item) =>
+    subscriptionHrefs.includes(item.href),
+  );
+  const mainNavigation = navigation.filter(
+    (item) => !subscriptionHrefs.includes(item.href),
+  );
+  const isSubscriptionRoute = subscriptionItems.some(
+    (item) => item.href === location.pathname,
+  );
+
+  const renderNavigation = (isMobile = false) => (
+    <>
+      {mainNavigation.map((item) => (
+        <NavLink
+          key={item.name}
+          to={item.href}
+          className={({ isActive }) =>
+            cn(
+              "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+              isActive
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            )
+          }
+          onClick={() => {
+            if (isMobile) setSidebarOpen(false);
+          }}
+        >
+          <item.icon className="h-5 w-5" />
+          <span>{item.name}</span>
+        </NavLink>
+      ))}
+
+      {subscriptionItems.length > 0 && (
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setSubscriptionMenuOpen((open) => !open)}
+            className={cn(
+              "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              isSubscriptionRoute
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
+          >
+            <span className="flex items-center space-x-3">
+              <CreditCard className="h-5 w-5" />
+              <span>{t("navigation.subscriptions")}</span>
+            </span>
+            {subscriptionMenuOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+
+          {subscriptionMenuOpen && (
+            <div className="space-y-1 pl-4">
+              {subscriptionItems.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                    )
+                  }
+                  onClick={() => {
+                    if (isMobile) setSidebarOpen(false);
+                  }}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.name}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
 
   const handleLogout = async () => {
     await logout();
     navigate("/login");
   };
 
-  const userEmail = user?.name || user?.email || user?.phone || "admin@Dairy Book.com";
+  const userEmail =
+    user?.name || user?.email || user?.phone || "admin@Dairy Book.com";
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,7 +273,7 @@ export default function Layout() {
       <div
         className={cn(
           "fixed inset-0 z-50 lg:hidden",
-          sidebarOpen ? "block" : "hidden"
+          sidebarOpen ? "block" : "hidden",
         )}
       >
         <div
@@ -144,7 +283,12 @@ export default function Layout() {
         <div className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center space-x-2">
-              <Milk className="h-8 w-8 text-primary" />
+              {/* <Milk className="h-8 w-8 text-primary" /> */}
+              <img
+                src={logo}
+                alt="Dairy Book"
+                className="h-8 w-8"
+              />
               <span className="text-xl font-bold text-foreground">
                 Dairy Book
               </span>
@@ -174,24 +318,7 @@ export default function Layout() {
             </div>
           )}
           <nav className="px-4 space-y-2">
-            {navigation.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.href}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  )
-                }
-                onClick={() => setSidebarOpen(false)}
-              >
-                <item.icon className="h-5 w-5" />
-                <span>{item.name}</span>
-              </NavLink>
-            ))}
+            {renderNavigation(true)}
           </nav>
         </div>
       </div>
@@ -201,7 +328,12 @@ export default function Layout() {
         <div className="flex grow flex-col bg-card border-r border-border">
           <div className="flex h-16 shrink-0 items-center px-6">
             <div className="flex items-center space-x-2">
-              <Milk className="h-8 w-8 text-primary" />
+              <img
+                src={logo}
+                alt="Dairy Book"
+                className="h-8 w-8"
+              />
+              {/* <Milk className="h-8 w-8 text-primary" /> */}
               <span className="text-xl font-bold text-foreground">
                 Dairy Book
               </span>
@@ -225,24 +357,7 @@ export default function Layout() {
           )}
           <nav className="flex flex-1 flex-col px-6 py-4">
             <ul role="list" className="flex flex-1 flex-col gap-y-2">
-              {navigation.map((item) => (
-                <li key={item.name}>
-                  <NavLink
-                    to={item.href}
-                    className={({ isActive }) =>
-                      cn(
-                        "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      )
-                    }
-                  >
-                    <item.icon className="h-5 w-5" />
-                    <span>{item.name}</span>
-                  </NavLink>
-                </li>
-              ))}
+              <li className="space-y-2">{renderNavigation()}</li>
             </ul>
           </nav>
         </div>
@@ -299,12 +414,17 @@ export default function Layout() {
                     </p>
                     <p className="text-sm text-muted-foreground">{userEmail}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {t("navigation.role")}: {(() => {
+                      {t("navigation.role")}:{" "}
+                      {(() => {
                         switch (userRole) {
-                          case 1: return t("roles.admin");
-                          case 2: return t("roles.dairy");
-                          case 3: return t("roles.farmer");
-                          default: return t("roles.unknown");
+                          case 1:
+                            return t("roles.admin");
+                          case 2:
+                            return t("roles.dairy");
+                          case 3:
+                            return t("roles.farmer");
+                          default:
+                            return t("roles.unknown");
                         }
                       })()}
                     </p>
@@ -321,7 +441,7 @@ export default function Layout() {
                     )}
                   </div>
                   <DropdownMenuSeparator />
-                  {canAccessRoute(userRole, '/settings') && (
+                  {canAccessRoute(userRole, "/settings") && (
                     <DropdownMenuItem onClick={() => navigate("/settings")}>
                       <Settings className="mr-2 h-4 w-4" />
                       {t("navigation.settings")}
@@ -342,7 +462,9 @@ export default function Layout() {
         </div>
 
         {/* Page content */}
-        <main className="min-h-[calc(100vh-4rem)]"><Outlet /></main>
+        <main className="min-h-[calc(100vh-4rem)]">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

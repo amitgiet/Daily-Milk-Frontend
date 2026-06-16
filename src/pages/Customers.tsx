@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard } from "lucide-react";
+import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard, Filter, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -49,7 +49,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { ApiResponse } from "@/types/auth";
-import { toast } from "react-toastify";
+import { formatDisplayDate } from "@/lib/dateFormat";
+import { DateInput } from "@/components/ui/date-input";
 
 // Interface for milk purchase history
 interface MilkPurchaseHistory {
@@ -106,6 +107,8 @@ export default function Customers() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
 
   const {
     register,
@@ -126,6 +129,7 @@ export default function Customers() {
     handleSubmit: handleSubmitPayment,
     reset: resetPayment,
     setValue: setPaymentValue,
+    watch: watchPayment,
     formState: { errors: paymentErrors },
   } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -284,6 +288,25 @@ export default function Customers() {
     resetPayment();
   };
 
+  const applyFilters = () => {
+    setAppliedSearch(searchInput.trim());
+  };
+
+  const clearFilters = () => {
+    setSearchInput("");
+    setAppliedSearch("");
+  };
+
+  const filteredFarmers = farmers.filter((farmer) => {
+    if (!appliedSearch) return true;
+    const query = appliedSearch.toLowerCase();
+    return (
+      farmer.name.toLowerCase().includes(query) ||
+      farmer.phone.includes(appliedSearch) ||
+      (farmer.email?.toLowerCase().includes(query) ?? false)
+    );
+  });
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -303,6 +326,44 @@ export default function Customers() {
           {t("farmers.addFarmer")}
         </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            {t("dairyListing.filters")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2 md:col-span-3">
+              <Label htmlFor="farmerSearch">{t("dairyListing.searchFarmers")}</Label>
+              <Input
+                id="farmerSearch"
+                placeholder={t("dairyListing.searchFarmers")}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyFilters();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="flex items-end gap-2 ">
+              <Button onClick={applyFilters} className="flex-1">
+                <Filter className="h-4 w-4 mr-2" />
+                {t("common.filter")}
+              </Button>
+              <Button variant="outline" onClick={clearFilters}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add/Edit Farmer Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -433,10 +494,12 @@ export default function Customers() {
 
             <div className="space-y-2">
               <Label htmlFor="paidAt">{t("payments.paidAt")} *</Label>
-              <Input
+              <DateInput
                 id="paidAt"
-                type="date"
-                {...registerPayment("paidAt")}
+                value={watchPayment("paidAt")}
+                onChange={(value) =>
+                  setPaymentValue("paidAt", value, { shouldValidate: true })
+                }
               />
               {paymentErrors.paidAt && (
                 <p className="text-sm text-destructive">
@@ -485,7 +548,7 @@ export default function Customers() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {farmers.map((farmer) => (
+          {filteredFarmers.map((farmer) => (
             <Card key={farmer.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -583,7 +646,7 @@ export default function Customers() {
                         {t("farmers.createdAt")}:
                       </span>
                       <span className="text-sm">
-                        {new Date(farmer.createdAt).toLocaleDateString()}
+                        {formatDisplayDate(farmer.createdAt)}
                       </span>
                     </div>
                   )}
@@ -594,7 +657,7 @@ export default function Customers() {
         </div>
       )}
 
-      {!loading && farmers.length === 0 && (
+      {!loading && filteredFarmers.length === 0 && (
         <div className="text-center py-8">
           <Milk className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">{t("farmers.noFarmers")}</p>

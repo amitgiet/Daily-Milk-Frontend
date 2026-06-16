@@ -11,6 +11,21 @@ export interface DashboardStats {
   recentOrders?: RecentOrder[];
   todayMilkCollectionDetails?: MilkCollectionDetail[];
   lowStockAlerts?: LowStockItem[];
+
+  // Admin specific stats
+  activeDairies?: number;
+  activeFarmers?: number;
+  activeSubscriptions?: number;
+  subscriptionPlans?: {
+    planId: number;
+    planName: string;
+    totalPurchased: number;
+  }[];
+
+  weeklyMilkCollection?: {
+    date: string;
+    liters: number;
+  }[];
 }
 
 export interface RecentOrder {
@@ -29,6 +44,47 @@ export interface MilkCollectionDetail {
   evening: number;
   total: number;
   farmerId?: number;
+}
+
+export interface TodayMilkCollectionEntry {
+  id: number;
+  farmerId: number;
+  shift: "morning" | "evening";
+  quantity: string | number;
+  farmer?: {
+    id: number;
+    name: string;
+  };
+}
+
+export interface FarmerMilkSummary {
+  farmerId: number;
+  name: string;
+  morning: number;
+  evening: number;
+  total: number;
+}
+
+export interface TodayMilkCollectionsResponse {
+  success: boolean;
+  message?: string;
+  data: TodayMilkCollectionEntry[];
+}
+
+export interface FarmerPendingPaymentEntry {
+  farmerId: number;
+  totalAmount: string | number;
+  farmer?: {
+    id: number;
+    name: string;
+    phone: string;
+  };
+}
+
+export interface FarmersWithPendingPaymentsResponse {
+  success: boolean;
+  message?: string;
+  data: FarmerPendingPaymentEntry[];
 }
 
 export interface LowStockItem {

@@ -4,7 +4,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { AlertTriangle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatDisplayDate } from '@/lib/dateFormat';
 
 export default function SubscriptionStatus() {
   const { hasSubscription, dairySubscription } = useAuth();
@@ -113,9 +113,9 @@ export default function SubscriptionStatus() {
         <CardContent className="pt-0">
           <div className="text-sm text-green-700 space-y-1">
             <p><strong>Plan ID:</strong> {dairySubscription.planId}</p>
-            <p><strong>Start Date:</strong> {new Date(dairySubscription.startDate).toLocaleDateString()}</p>
+            <p><strong>Start Date:</strong> {formatDisplayDate(dairySubscription.startDate)}</p>
             {dairySubscription.endDate && dairySubscription.endDate !== '0000-00-00' && (
-              <p><strong>End Date:</strong> {new Date(dairySubscription.endDate).toLocaleDateString()}</p>
+              <p><strong>End Date:</strong> {formatDisplayDate(dairySubscription.endDate)}</p>
             )}
             <p><strong>Status:</strong> {dairySubscription.status}</p>
           </div>

@@ -39,6 +39,13 @@ import { useAuth } from "../contexts/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
 import Receipt from "../components/Reciept";
 import { useParams } from "react-router-dom";
+import { formatDisplayDate } from "@/lib/dateFormat";
+import { DateInput } from "@/components/ui/date-input";
+import { Milk } from "lucide-react";
+
+
+
+
 
 interface MilkEntry {
   id: number;
@@ -62,6 +69,10 @@ interface Farmer {
   id: number;
   name: string;
   phone: string;
+}
+
+function getDefaultShift(referenceDate: Date = new Date()): "morning" | "evening" {
+  return referenceDate.getHours() >= 14 ? "evening" : "morning";
 }
 
 const MilkCollection: React.FC = () => {
@@ -94,7 +105,7 @@ const MilkCollection: React.FC = () => {
   const [snf, setSnf] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [quantity, setQuantity] = useState<string>("");
-  const [shift, setShift] = useState<"morning" | "evening">("morning");
+  const [shift, setShift] = useState<"morning" | "evening">(() => getDefaultShift());
   const [selectedShift, setSelectedShift] = useState<"morning" | "evening" | "">("");
   const [date, setDate] = useState<string>(
     new Date().toISOString().split("T")[0]
@@ -186,7 +197,7 @@ const MilkCollection: React.FC = () => {
     setFat("");
     setSnf("");
     setQuantity("");
-    setShift("morning");
+    setShift(getDefaultShift());
     setDate(new Date().toISOString().split("T")[0]);
   };
 
@@ -275,7 +286,7 @@ const MilkCollection: React.FC = () => {
       // Prepare receipt data
       const receipt = {
         address: "Dairy Management System",
-        date: new Date(date).toLocaleDateString(),
+        date: formatDisplayDate(date, ""),
         items: [{
           name: `${farmerName}`,
           price: totalAmount
@@ -420,36 +431,76 @@ const MilkCollection: React.FC = () => {
   }, [selectedShift]);
   return (
     <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{t("milkCollection.title")}</h1>
-        <div className="flex items-center gap-2">
-          {selectedDairyId && (
-            <Badge variant="outline" className="text-sm">
-              {t("milkCollection.selectedDairy")}: {selectedDairyId}
-            </Badge>
-          )}
-          {isFarmerUser && (
-            <Badge variant="secondary" className="text-sm">
-              {t("milkCollection.viewingOwnData")}
-            </Badge>
-          )}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Milk className="h-6 w-6 text-primary" />
+            {t("milkCollection.title")}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {t("milkCollection.subtitle")}
+          </p>
         </div>
       </div>
+ 
 
       {/* Milk Entry Form - Only show for admin/dairy users */}
       {canManageMilk && (
         <Card>
-          <CardHeader>
-            <CardTitle>
-              {isEditMode
-                ? t("milkCollection.editEntry")
-                : t("milkCollection.addEntry")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
+          <form onSubmit={handleSubmit}>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <CardTitle className="text-lg font-semibold">
+                  {isEditMode
+                    ? t("milkCollection.editEntry")
+                    : t("milkCollection.addEntry")}
+                </CardTitle>
+                <div className="flex flex-row flex-nowrap items-end gap-3 shrink-0">
+                  <div className="min-w-[140px] space-y-2">
+                    {/* <Label htmlFor="date">{t("milkCollection.date")}</Label> */}
+                    <DateInput
+                      id="date"
+                      className="w-full"
+                      value={date}
+                      onChange={(newDate) => {
+                        setDate(newDate);
+                        if (
+                          !isEditMode &&
+                          newDate === new Date().toISOString().split("T")[0]
+                        ) {
+                          setShift(getDefaultShift());
+                        }
+                      }}
+                      required
+                    />
+                  </div>
+                  <div className="min-w-[130px] space-y-2">
+                   {/*  <Label htmlFor="shift">{t("milkCollection.shift")}</Label> */}
+                    <Select
+                      value={shift}
+                      onValueChange={(value: "morning" | "evening") =>
+                        setShift(value)
+                      }
+                    >
+                      <SelectTrigger id="shift" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="morning">
+                          {t("milkCollection.morning")}
+                        </SelectItem>
+                        <SelectItem value="evening">
+                          {t("milkCollection.evening")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-row flex-nowrap items-end gap-3 overflow-x-auto pb-1">
+                <div className="min-w-[210px] flex-1 space-y-2">
                   <Label htmlFor="farmer">
                     {t("milkCollection.farmerName")}
                   </Label>
@@ -476,12 +527,11 @@ const MilkCollection: React.FC = () => {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="min-w-[110px] flex-1 space-y-2">
                   <Label htmlFor="fat">{t("milkCollection.fat")}</Label>
                   <Input
                     id="fat"
-                    type="number"
-                    step="0.1"
+                    type="text" 
                     value={fat}
                     onChange={(e) => setFat(e.target.value)}
                     placeholder="0.0"
@@ -489,98 +539,70 @@ const MilkCollection: React.FC = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="min-w-[110px] flex-1 space-y-2">
+                  <Label htmlFor="snf">{t("milkCollection.snf")}</Label>
+                  <Input
+                    id="snf"
+                    type="text"
+                    value={snf}
+                    onChange={(e) => setSnf(e.target.value)}
+                    placeholder="0.0"
+                     
+                  />
+                </div>
+
+                <div className="min-w-[130px] flex-1 space-y-2">
                   <Label htmlFor="quantity">
                     {t("milkCollection.quantity")}
                   </Label>
                   <Input
                     id="quantity"
-                    type="number"
-                    step="0.1"
+                    type="text" 
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     placeholder="0.0"
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="snf">{t("milkCollection.snf")}</Label>
-                  <Input
-                    id="snf"
-                    type="number"
-                    step="0.1"
-                    value={snf}
-                    onChange={(e) => setSnf(e.target.value)}
-                    placeholder="0.0"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date">{t("milkCollection.date")}</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    required
-                  />
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="shift">{t("milkCollection.shift")}</Label>
-                  <Select
-                    value={shift}
-                    onValueChange={(value: "morning" | "evening") =>
-                      setShift(value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="morning">
-                        {t("milkCollection.morning")}
-                      </SelectItem>
-                      <SelectItem value="evening">
-                        {t("milkCollection.evening")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="shrink-0 space-y-2">
+                  <Label className="invisible select-none" aria-hidden="true">
+                    .
+                  </Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      disabled={collectingMilk || updatingMilk || loading}
+                    >
+                      {collectingMilk || updatingMilk
+                        ? t("common.loading")
+                        : isEditMode
+                          ? t("common.update")
+                          : t("common.submit")}
+                    </Button>
+                    {isEditMode && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                      >
+                        {t("common.cancel")}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={handleSaveAndPrint}
+                      disabled={collectingMilk || updatingMilk || loading}
+                    >
+                      {collectingMilk || updatingMilk
+                        ? t("common.loading")
+                        : t("common.saveAndPrint")}
+                    </Button>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  disabled={collectingMilk || updatingMilk || loading}
-                >
-                  {collectingMilk || updatingMilk
-                    ? t("common.loading")
-                    : isEditMode
-                      ? t("common.update")
-                      : t("common.submit")}
-                </Button>
-                {isEditMode && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleCancelEdit}
-                  >
-                    {t("common.cancel")}
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  onClick={handleSaveAndPrint}
-                  disabled={collectingMilk || updatingMilk || loading}
-                >
-                  {collectingMilk || updatingMilk
-                    ? t("common.loading")
-                    : t("common.saveAndPrint")}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
+            </CardContent>
+          </form>
         </Card>
       )}
 
@@ -631,7 +653,7 @@ const MilkCollection: React.FC = () => {
       {/* Milk Collection List */}
       <Card>
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="text-lg font-semibold">
             <div className="flex justify-between items-center gap-2">
               {isFarmerUser
                 ? t("milkCollection.myCollectionList")
@@ -688,7 +710,7 @@ const MilkCollection: React.FC = () => {
                       <TableCell>{entry.farmer?.name || "N/A"}</TableCell>
                     )}
                     <TableCell>
-                      {new Date(entry.date).toLocaleDateString()}
+                      {formatDisplayDate(entry.date)}
                     </TableCell>
                     <TableCell>
                       <Badge

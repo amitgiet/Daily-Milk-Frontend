@@ -1,14 +1,14 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { canAccessRoute } from '@/lib/permissions';
+import { canAccessRoute, isSubscriptionActive } from '@/lib/permissions';
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading, user, hasSubscription } = useAuth();
+  const { isAuthenticated, isLoading, user, hasSubscription, dairySubscription } = useAuth();
   const location = useLocation();
   
   // Show loading state while checking authentication
@@ -26,11 +26,13 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   // Check role-based access with subscription
   const userRole = user?.roleId || 1;
-  if (!canAccessRoute(userRole, location.pathname, hasSubscription)) {
-    console.log(`Access denied: User role ${userRole} cannot access ${location.pathname} (subscription: ${hasSubscription})`);
+  const hasActiveSubscription =
+    hasSubscription || isSubscriptionActive(dairySubscription);
+  if (!canAccessRoute(userRole, location.pathname, hasActiveSubscription)) {
+    console.log(`Access denied: User role ${userRole} cannot access ${location.pathname} (subscription: ${hasActiveSubscription})`);
     
     // For dairy users without subscription, redirect to subscription plans
-    if (userRole === 2 && !hasSubscription && location.pathname !== '/subscription-plans') {
+    if (userRole === 2 && !hasActiveSubscription && location.pathname !== '/subscription-plans') {
       return <Navigate to="/subscription-plans" replace />;
     }
     

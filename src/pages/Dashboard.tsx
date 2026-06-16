@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatsCard } from "@/components/ui/StatsCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import {
   Package,
   Users,
@@ -32,6 +32,7 @@ export default function Dashboard() {
   console.log(userRole);
   const [farmerDairies, setFarmerDairies] = useState<any[]>([]);
   const [selectedDairyId, setSelectedDairyId] = useState<number | null>(null);
+
   // Fetch dashboard stats
   const {
     data: dashboardStats,
@@ -95,6 +96,14 @@ export default function Dashboard() {
     setSelectedDairyId(dairyId);
      navigate(`/milk-collection?dairyId=${dairyId}`);
   };  
+
+  if (userRole === 1) {
+    return <Navigate to="/admin-dashboard" replace />;
+  }
+
+  if (userRole === 2) {
+    return <Navigate to="/dairy-dashboard" replace />;
+  }
 
   return (
     <div className="p-6 space-y-6">

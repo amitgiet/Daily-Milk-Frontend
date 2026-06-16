@@ -45,7 +45,8 @@ import { useQuery, useMutation } from "../hooks/useApi";
 import { apiCall } from "../lib/apiCall";
 import { allRoutes } from "../lib/apiRoutes";
 import { useAuth } from "../contexts/AuthContext";
-import { toast } from "../hooks/use-toast";
+import { formatDisplayDate } from "../lib/dateFormat";
+import { DateInput } from "../components/ui/date-input";
 import { Plus, Edit, Trash2, Calendar, CreditCard, DollarSign, Filter, X } from "lucide-react";
 
 interface Payment {
@@ -260,8 +261,8 @@ const PaymentManagement = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <CreditCard className="h-8 w-8" />
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <CreditCard className="h-6 w-6 text-primary" />
             {t("payments.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -277,7 +278,7 @@ const PaymentManagement = () => {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Filter className="h-5 w-5" />
             {t("payments.filterByFarmer")}
           </CardTitle>
@@ -303,19 +304,17 @@ const PaymentManagement = () => {
 
             <div className="space-y-2">
               <Label>{t("payments.fromDate")}</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={setStartDate}
               />
             </div>
 
             <div className="space-y-2">
               <Label>{t("payments.toDate")}</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={setEndDate}
               />
             </div>
 
@@ -335,7 +334,7 @@ const PaymentManagement = () => {
       {/* Payments List */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Calendar className="h-5 w-5" />
             {t("payments.paymentHistory")}
           </CardTitle>
@@ -374,7 +373,7 @@ const PaymentManagement = () => {
                         {payment.farmer?.name || `Farmer ${payment.farmerId}`}
                       </TableCell>
                       <TableCell>
-                        {new Date(payment.paidAt).toLocaleDateString()}
+                        {formatDisplayDate(payment.paidAt)}
                       </TableCell>
                       <TableCell className="font-semibold">
                         ₹{parseFloat(payment.amount).toFixed(2)}
@@ -451,11 +450,10 @@ const PaymentManagement = () => {
 
             <div className="space-y-2">
               <Label htmlFor="paidAt">{t("payments.paidAt")} *</Label>
-              <Input
+              <DateInput
                 id="paidAt"
-                type="date"
                 value={formData.paidAt}
-                onChange={(e) => handleInputChange("paidAt", e.target.value)}
+                onChange={(value) => handleInputChange("paidAt", value)}
                 required
               />
             </div>

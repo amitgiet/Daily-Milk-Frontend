@@ -130,7 +130,7 @@ export default function Settings() {
 
   const handleSaveMilkRates = async () => {
     // Double-check that only admin users can save milk rate settings
-    if (!user || user.roleId !== UserRole.ADMIN) {
+    if (!user || user.roleId !== UserRole.DAIRY) {
       toast.error(t("settings.unauthorized"));
       return;
     }
@@ -428,7 +428,7 @@ export default function Settings() {
             <Button onClick={handleUpdateProfile}>{t("settings.updateProfile")}</Button>
           </CardContent>
         </Card>
-        {user?.roleId === UserRole.ADMIN && (
+        {user?.roleId === UserRole.DAIRY && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

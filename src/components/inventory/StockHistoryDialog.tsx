@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { formatDisplayDateTime } from "@/lib/dateFormat";
 import { TrendingUp, TrendingDown, RotateCcw } from "lucide-react";
 
 interface StockHistoryDialogProps {
@@ -87,7 +87,7 @@ export function StockHistoryDialog({
                 history.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">
-                      {format(new Date(entry.timestamp), "MMM dd, yyyy HH:mm")}
+                      {formatDisplayDateTime(entry.timestamp)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

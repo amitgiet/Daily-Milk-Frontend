@@ -10,6 +10,8 @@ import RouteLogger from "./components/RouteLogger";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import DairyDashboard from "./pages/DairyDashboard";
 import Inventory from "./pages/Inventory";
 import MilkCollection from "./pages/MilkCollection";
 import DairyRates from "./pages/DairyRates";
@@ -20,7 +22,11 @@ import Settings from "./pages/Settings";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import AdminSubscriptionPlans from "./pages/AdminSubscriptionPlans";
 import DairyListing from "./pages/DairyListing";
+import FarmerListing from "./pages/FarmerListing";
 import DairyReports from "./pages/DairyReports";
+import DairySubscriptions from "./pages/DairySubscriptions";
+import PurchasedSubscriptions from "./pages/PurchasedSubscriptions";
+import PendingSubscriptions from "./pages/PendingSubscriptions";
 import NotFound from "./pages/NotFound";
 import DiaryDispatch from "./pages/DiaryDispatch";
 import PaymentManagement from "./pages/PaymentManagement";
@@ -39,7 +45,7 @@ const App = () => (
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            
+
             {/* Protected routes with Layout */}
             <Route
               path="/"
@@ -51,6 +57,8 @@ const App = () => (
             >
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="admin-dashboard" element={<AdminDashboard />} />
+              <Route path="dairy-dashboard" element={<DairyDashboard />} />
               {/* <Route path="inventory" element={<Inventory />} /> */}
               <Route path="milk-collection" element={<MilkCollection />} />
               {/* <Route path="dairy-rates" element={<DairyRates />} /> */}
@@ -59,11 +67,33 @@ const App = () => (
               <Route path="orders" element={<Orders />} />
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="subscription-plans" element={<SubscriptionPlans />} />
+              <Route
+                path="subscription-plans"
+                element={<SubscriptionPlans />}
+              />
+              <Route
+                path="dairy-subscriptions"
+                element={<DairySubscriptions />}
+              />
+              <Route
+                path="purchased-subscriptions"
+                element={<PurchasedSubscriptions />}
+              />
               <Route path="dairy-listing" element={<DairyListing />} />
-              <Route path="admin-subscription-plans" element={<AdminSubscriptionPlans />} />
+              <Route path="farmer-listing" element={<FarmerListing />} />
+              <Route
+                path="admin-subscription-plans"
+                element={<AdminSubscriptionPlans />}
+              />
+              <Route
+                path="pending-subscriptions"
+                element={<PendingSubscriptions />}
+              />
               <Route path="diary-dispatch" element={<DiaryDispatch />} />
-              <Route path="payment-management" element={<PaymentManagement />} />
+              <Route
+                path="payment-management"
+                element={<PaymentManagement />}
+              />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

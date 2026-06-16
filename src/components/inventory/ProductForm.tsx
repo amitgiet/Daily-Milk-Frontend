@@ -6,11 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { DateInput } from "@/components/ui/date-input";
+import { format, parseISO } from "date-fns";
 
 const productSchema = z.object({
   name: z.string().min(1, "Product name is required"),
@@ -160,30 +157,16 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
 
         <div className="space-y-2">
           <Label>Expiry Date *</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !selectedDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setValue("expiryDate", date)}
-                disabled={(date) => date < new Date()}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <DateInput
+            value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
+            onChange={(value) => {
+              if (value) {
+                setValue("expiryDate", parseISO(value), { shouldValidate: true });
+              }
+            }}
+            disableDate={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+            required
+          />
           {errors.expiryDate && (
             <p className="text-sm text-destructive">{errors.expiryDate.message}</p>
           )}

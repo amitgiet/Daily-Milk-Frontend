@@ -17,7 +17,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
-import Logo from "../pages/pnglogo.png"
+import Logo from "../assets/pnglogo.png"
 
 const Login = () => {
   const { t } = useTranslation();

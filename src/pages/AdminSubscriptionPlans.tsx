@@ -11,14 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -38,16 +30,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Edit,
   Trash2,
   CheckCircle,
   XCircle,
-  Clock,
-  Package,
-  Users,
   Calendar,
 } from "lucide-react";
 import { apiCall } from "@/lib/apiCall";
@@ -56,7 +44,6 @@ import { toast } from "react-toastify";
 import {
   SubscriptionPlan,
   SubscriptionPlanFormData,
-  PendingRequest,
 } from "@/types/subscription";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -102,9 +89,7 @@ export default function AdminSubscriptionPlans() {
   const { canAccessFeature } = usePermissions();
 
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingRequests, setLoadingRequests] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [formData, setFormData] = useState<SubscriptionPlanFormData>({
@@ -117,7 +102,6 @@ export default function AdminSubscriptionPlans() {
 
   useEffect(() => {
     loadPlans();
-    loadPendingRequests();
   }, []);
 
   const loadPlans = async () => {
@@ -138,24 +122,6 @@ export default function AdminSubscriptionPlans() {
       setPlans([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadPendingRequests = async () => {
-    setLoadingRequests(true);
-    try {
-      const response = await apiCall(
-        allRoutes.subscriptions.pendingRequests,
-        "get"
-      );
-      if (response.success && response.data) {
-        setPendingRequests(Array.isArray(response.data.data) ? response.data.data : []);
-      }
-    } catch (error) {
-      console.error("Error loading pending requests:", error);
-      toast.error(t("subscriptionPlans.loadRequestsError"));
-    } finally {
-      setLoadingRequests(false);
     }
   };
 
@@ -260,30 +226,6 @@ export default function AdminSubscriptionPlans() {
     }
   };
 
-  const handleUpdateRequestStatus = async (
-    requestId: number,
-    status: "active" | "cancelled"
-  ) => {
-    try {
-      const response = await apiCall(
-        allRoutes.subscriptions.updateRequestStatus(requestId),
-        "put",
-        { status }
-      );
-      if (response.success) {
-        toast.success(
-          status === "active"
-            ? t("subscriptionPlans.requestApproved")
-            : t("subscriptionPlans.requestRejected")
-        );
-        loadPendingRequests();
-      }
-    } catch (error) {
-      console.error("Error updating request status:", error);
-      toast.error(t("subscriptionPlans.updateRequestError"));
-    }
-  };
-
   const resetForm = () => {
     setFormData({
       name: "",
@@ -317,10 +259,6 @@ export default function AdminSubscriptionPlans() {
       ...formData,
       features: updatedFeatures,
     });
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-IN");
   };
 
   return (
@@ -439,7 +377,7 @@ export default function AdminSubscriptionPlans() {
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button
-                    type="button"
+                     type="button"
                     variant="outline"
                     onClick={() => {
                       setShowForm(false);
@@ -461,289 +399,141 @@ export default function AdminSubscriptionPlans() {
         )}
       </div>
 
-      <Tabs defaultValue="plans" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="plans" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            {t("subscriptionPlans.subscriptionPlans")}
-          </TabsTrigger>
-          <TabsTrigger value="requests" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            {t("subscriptionPlans.pendingRequests")}
-          </TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardContent className="pt-6">
+          {loading ? (
+            <div className="text-center py-8">
+              {t("subscriptionPlans.loadingPlans")}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {plans.map((plan) => (
+                <Card key={plan.id} className="relative">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">
+                          {plan.name}
+                        </CardTitle>
+                        <CardDescription>
+                          {plan.durationDays} days • ₹
+                          {typeof plan.price === "string"
+                            ? plan.price
+                            : plan.price.toString()}
+                        </CardDescription>
+                      </div>
+                      <Badge
+                        variant={plan.isActive ? "default" : "secondary"}
+                      >
+                        {plan.isActive
+                          ? t("subscriptionPlans.active")
+                          : t("subscriptionPlans.inactive")}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        {plan.durationDays} days
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        ₹
+                        {typeof plan.price === "string"
+                          ? plan.price
+                          : plan.price.toString()}
+                      </div>
+                      {plan.features &&
+                        (() => {
+                          const features = parseFeatures(plan.features);
+                          return features.length > 0 ? (
+                            <div>
+                              <p className="text-sm font-medium mb-2">
+                                Features:
+                              </p>
+                              <ul className="text-sm text-muted-foreground space-y-1">
+                                {features.map((feature, index) => (
+                                  <li
+                                    key={index}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <CheckCircle className="h-3 w-3 text-green-500" />
+                                    {feature}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null;
+                        })()}
 
-        <TabsContent value="plans">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("subscriptionPlans.subscriptionPlans")}</CardTitle>
-              <CardDescription>
-                {t("subscriptionPlans.managePlans")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8">
-                  {t("subscriptionPlans.loadingPlans")}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {plans.map((plan) => (
-                    <Card key={plan.id} className="relative">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">
-                              {plan.name}
-                            </CardTitle>
-                            <CardDescription>
-                              {plan.durationDays} days • ₹
-                              {typeof plan.price === "string"
-                                ? plan.price
-                                : plan.price.toString()}
-                            </CardDescription>
-                          </div>
-                          <Badge
-                            variant={plan.isActive ? "default" : "secondary"}
-                          >
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center gap-2">
+                          {canAccessFeature("manageSubscriptionPlans") && (
+                            <Switch
+                              checked={plan.isActive}
+                              onCheckedChange={() =>
+                                handleToggleStatus(plan.id, plan.isActive)
+                              }
+                            />
+                          )}
+                          <span className="text-xs text-muted-foreground">
                             {plan.isActive
                               ? t("subscriptionPlans.active")
                               : t("subscriptionPlans.inactive")}
-                          </Badge>
+                          </span>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Calendar className="h-4 w-4" />
-                            {plan.durationDays} days
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            ₹
-                            {typeof plan.price === "string"
-                              ? plan.price
-                              : plan.price.toString()}
-                          </div>
-                          {plan.features &&
-                            (() => {
-                              const features = parseFeatures(plan.features);
-                              return features.length > 0 ? (
-                                <div>
-                                  <p className="text-sm font-medium mb-2">
-                                    Features:
-                                  </p>
-                                  <ul className="text-sm text-muted-foreground space-y-1">
-                                    {features.map((feature, index) => (
-                                      <li
-                                        key={index}
-                                        className="flex items-center gap-2"
-                                      >
-                                        <CheckCircle className="h-3 w-3 text-green-500" />
-                                        {feature}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ) : null;
-                            })()}
-
-                          <div className="flex items-center justify-between pt-2">
-                            <div className="flex items-center gap-2">
-                              {canAccessFeature("manageSubscriptionPlans") && (
-                                <Switch
-                                  checked={plan.isActive}
-                                  onCheckedChange={() =>
-                                    handleToggleStatus(plan.id, plan.isActive)
-                                  }
-                                />
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                {plan.isActive
-                                  ? t("subscriptionPlans.active")
-                                  : t("subscriptionPlans.inactive")}
-                              </span>
-                            </div>
-                            <div className="flex gap-1">
-                              {canAccessFeature("manageSubscriptionPlans") && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(plan)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {canAccessFeature("manageSubscriptionPlans") && (
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Delete Plan
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to delete "
-                                        {plan.name}"? This action cannot be
-                                        undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Cancel
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDelete(plan.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="requests">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("subscriptionPlans.pendingRequests")}</CardTitle>
-              <CardDescription>
-                {t("subscriptionPlans.reviewRequests")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingRequests ? (
-                <div className="text-center py-8">
-                  {t("subscriptionPlans.loadingRequests")}
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("subscriptionPlans.dairy")}</TableHead>
-                      <TableHead>{t("subscriptionPlans.plan")}</TableHead>
-                      <TableHead>
-                        {t("subscriptionPlans.requestDate")}
-                      </TableHead>
-                      <TableHead>{t("subscriptionPlans.status")}</TableHead>
-                      <TableHead>{t("subscriptionPlans.actions")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pendingRequests.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
-                          {t("subscriptionPlans.noPendingRequests")}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pendingRequests.map((request) => (
-                        <TableRow key={request.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">
-                                {request.dairy.name}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Email: {request.dairy.email}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Phone: {request.dairy.phone}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Dairy ID: {request.dairy.id}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{request.plan.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Price: ₹{request.plan.price}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Duration: {request.plan.durationDays} days
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Plan ID: {request.plan.id}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              {formatDate(request.createdAt)}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                request.status === "pending"
-                                  ? "secondary"
-                                  : request.status === "approved"
-                                  ? "default"
-                                  : "destructive"
-                              }
+                        <div className="flex gap-1">
+                          {canAccessFeature("manageSubscriptionPlans") && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(plan)}
                             >
-                              {request.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {request.status === "pending" && (
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() =>
-                                    handleUpdateRequestStatus(
-                                      request.id,
-                                      "active"
-                                    )
-                                  }
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  {t("subscriptionPlans.approve")}
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canAccessFeature("manageSubscriptionPlans") && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() =>
-                                    handleUpdateRequestStatus(
-                                      request.id,
-                                      "cancelled"
-                                    )
-                                  }
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  {t("subscriptionPlans.reject")}
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Delete Plan
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "
+                                    {plan.name}"? This action cannot be
+                                    undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>
+                                    Cancel
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(plan.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

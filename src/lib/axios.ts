@@ -1,12 +1,17 @@
-import axios from 'axios';
+import axios from "axios";
+
+// Determine API base URL from Vite env variable (fall back to dairybook API)
+const API_BASE =
+  (import.meta.env && import.meta.env.VITE_API_BASE_URL) ||
+  process.env.VITE_API_BASE_URL ||
+  "https://api.dairybook.in";
 
 // Create axios instance with default config
 const api = axios.create({
-  // Use proxy in both development and production to avoid CORS issues
-  baseURL: '/api', // Use proxy in both dev and prod
-  timeout: 30000, // Increased timeout to 30 seconds
+  baseURL: API_BASE,
+  timeout: 30000, // 30 seconds
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -14,22 +19,22 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Get token from localStorage
-    const token = localStorage.getItem('authToken');
-    
+    const token = localStorage.getItem("authToken");
+
     // Add authorization header if token exists
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Add language header for internationalization
-    const language = localStorage.getItem('i18nextLng') || 'en';
-    config.headers['Accept-Language'] = language;
-    
+    const language = localStorage.getItem("i18nextLng") || "en";
+    config.headers["Accept-Language"] = language;
+
     return config;
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor
@@ -43,163 +48,166 @@ api.interceptors.response.use(
     if (error.response) {
       // Server responded with error status
       const { status, data } = error.response;
-      
+
       // Log detailed error information for debugging
       console.error(`API Error ${status}:`, {
         url: error.config?.url,
         method: error.config?.method,
         data: data,
-        headers: error.config?.headers
+        headers: error.config?.headers,
       });
-      
+
       switch (status) {
         case 401:
           // Unauthorized - clear token and redirect to login
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('isAuthenticated');
-          window.location.href = '/login';
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("isAuthenticated");
+          window.location.href = "/login";
           break;
         case 403:
           // Forbidden - logout user
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('isAuthenticated');
-          window.location.href = '/login';
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("isAuthenticated");
+          window.location.href = "/login";
           break;
         case 404:
           // Not found
-          console.error('Resource not found:', data);
+          console.error("Resource not found:", data);
           break;
         case 422:
           // Validation error
-          console.error('Validation error:', data);
+          console.error("Validation error:", data);
           break;
         case 500:
           // Server error - log more details
-          console.error('Server error (500):', {
-            message: data?.message || 'Internal server error',
+          console.error("Server error (500):", {
+            message: data?.message || "Internal server error",
             data: data,
             url: error.config?.url,
             method: error.config?.method,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           break;
         default:
-          console.error('API error:', data);
+          console.error("API error:", data);
       }
-      
+
       // Return error with custom message
       return Promise.reject({
-        message: data?.message || 'An error occurred',
+        message: data?.message || "An error occurred",
         status,
         data,
         url: error.config?.url,
-        method: error.config?.method
+        method: error.config?.method,
       });
     } else if (error.request) {
       // Network error
-      console.error('Network error:', {
+      console.error("Network error:", {
         request: error.request,
         url: error.config?.url,
         method: error.config?.method,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return Promise.reject({
-        message: 'Network error. Please check your connection.',
+        message: "Network error. Please check your connection.",
         status: 0,
         url: error.config?.url,
-        method: error.config?.method
+        method: error.config?.method,
       });
     } else {
       // Other error
-      console.error('Request error:', {
+      console.error("Request error:", {
         message: error.message,
         url: error.config?.url,
         method: error.config?.method,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return Promise.reject({
-        message: error.message || 'An unexpected error occurred',
+        message: error.message || "An unexpected error occurred",
         status: 0,
         url: error.config?.url,
-        method: error.config?.method
+        method: error.config?.method,
       });
     }
-  }
+  },
 );
 
 // API service functions
 export const authAPI = {
   // Login
   login: (credentials: { phone: string; password: string }) =>
-    api.post('/auth/login', credentials),
-  
+    api.post("/auth/login", credentials),
+
   // Register
   register: (userData: {
     name: string;
     phone: string;
     password: string;
     referralCode?: string;
-  }) => api.post('/auth/registeration', userData), // Note: backend uses "registeration"
-  
+  }) => api.post("/auth/registeration", userData), // Note: backend uses "registeration"
+
   // Refresh token
-  refreshToken: () => api.post('/auth/refresh'),
-  
+  refreshToken: () => api.post("/auth/refresh"),
+
   // Forgot password
   forgotPassword: (phone: string) =>
-    api.post('/auth/forgot-password', { phone }),
-  
+    api.post("/auth/forgot-password", { phone }),
+
   // OTP Verify
   otpVerify: (data: { phone: string; otp: string }) =>
-    api.post('/auth/otp-verify', data),
-  
+    api.post("/auth/otp-verify", data),
+
   // Change password
-  changePassword: (data: { phone: string; new_password: string; confirm_password: string }) =>
-    api.put('/auth/change-password', data),
+  changePassword: (data: {
+    phone: string;
+    new_password: string;
+    confirm_password: string;
+  }) => api.put("/auth/change-password", data),
 };
 
 export const farmersAPI = {
   // Get all farmers
-  getFarmers: (params?: {
-    search?: string;
-    page?: number;
-    limit?: number;
-  }) => api.get('/admin/farmers', { params }),
-  
+  getFarmers: (params?: { search?: string; page?: number; limit?: number }) =>
+    api.get("/admin/farmers", { params }),
+
   // Get farmer by ID
   getFarmer: (id: string) => api.get(`/admin/farmers/${id}`),
-  
+
   // Create farmer
   createFarmer: (farmerData: {
     name: string;
     phone: string;
     password: string;
     dairyId: number;
-  }) => api.post('/admin/farmers', farmerData),
-  
+  }) => api.post("/admin/farmers", farmerData),
+
   // Update farmer
   updateFarmer: (id: string, farmerData: any) =>
     api.put(`/admin/farmers/${id}`, farmerData),
-  
+
   // Delete farmer
   deleteFarmer: (id: string) => api.delete(`/admin/farmers/${id}`),
-  
+
   // Get farmer milk history
-  getMilkHistory: (id: string, params?: {
-    startDate?: string;
-    endDate?: string;
-    page?: number;
-    limit?: number;
-  }) => api.get(`/admin/farmers/${id}/milk-history`, { params }),
+  getMilkHistory: (
+    id: string,
+    params?: {
+      startDate?: string;
+      endDate?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) => api.get(`/admin/farmers/${id}/milk-history`, { params }),
 };
 
 export const milkCollectionAPI = {
   // Get today's milk collection
-  getTodayCollection: () => api.get('/milk-collection/today'),
-  
+  getTodayCollection: () => api.get("/milk-collection/today"),
+
   // Get milk collection by date
   getCollectionByDate: (date: string) =>
     api.get(`/milk-collection/date/${date}`),
-  
+
   // Add milk entry
   addEntry: (entryData: {
     farmerId: string;
@@ -207,25 +215,24 @@ export const milkCollectionAPI = {
     quantity: number;
     ratePerLiter: number;
     totalPrice: number;
-  }) => api.post('/milk-collection/entries', entryData),
-  
+  }) => api.post("/milk-collection/entries", entryData),
+
   // Update milk entry
   updateEntry: (id: string, entryData: any) =>
     api.put(`/milk-collection/entries/${id}`, entryData),
-  
+
   // Delete milk entry
-  deleteEntry: (id: string) =>
-    api.delete(`/milk-collection/entries/${id}`),
-  
+  deleteEntry: (id: string) => api.delete(`/milk-collection/entries/${id}`),
+
   // Get collection summary
   getSummary: (date?: string) =>
-    api.get('/milk-collection/summary', { params: { date } }),
-  
+    api.get("/milk-collection/summary", { params: { date } }),
+
   // Export collection data
-  exportData: (date: string, format: 'pdf' | 'excel' = 'pdf') =>
+  exportData: (date: string, format: "pdf" | "excel" = "pdf") =>
     api.get(`/milk-collection/export/${date}`, {
       params: { format },
-      responseType: 'blob',
+      responseType: "blob",
     }),
 };
 
@@ -237,30 +244,32 @@ export const inventoryAPI = {
     status?: string;
     page?: number;
     limit?: number;
-  }) => api.get('/inventory/products', { params }),
-  
+  }) => api.get("/inventory/products", { params }),
+
   // Get product by ID
   getProduct: (id: string) => api.get(`/inventory/products/${id}`),
-  
+
   // Create product
   createProduct: (productData: any) =>
-    api.post('/inventory/products', productData),
-  
+    api.post("/inventory/products", productData),
+
   // Update product
   updateProduct: (id: string, productData: any) =>
     api.put(`/inventory/products/${id}`, productData),
-  
+
   // Delete product
-  deleteProduct: (id: string) =>
-    api.delete(`/inventory/products/${id}`),
-  
+  deleteProduct: (id: string) => api.delete(`/inventory/products/${id}`),
+
   // Adjust stock
-  adjustStock: (id: string, adjustmentData: {
-    type: 'add' | 'remove';
-    quantity: number;
-    reason: string;
-  }) => api.post(`/inventory/products/${id}/stock`, adjustmentData),
-  
+  adjustStock: (
+    id: string,
+    adjustmentData: {
+      type: "add" | "remove";
+      quantity: number;
+      reason: string;
+    },
+  ) => api.post(`/inventory/products/${id}/stock`, adjustmentData),
+
   // Get stock history
   getStockHistory: (id: string) =>
     api.get(`/inventory/products/${id}/stock-history`),
@@ -268,17 +277,17 @@ export const inventoryAPI = {
 
 export const dashboardAPI = {
   // Get dashboard stats
-  getStats: () => api.get('/dashboard/stats'),
-  
+  getStats: () => api.get("/dashboard/stats"),
+
   // Get recent activities
-  getRecentActivities: () => api.get('/dashboard/recent-activities'),
-  
+  getRecentActivities: () => api.get("/dashboard/recent-activities"),
+
   // Get sales chart data
-  getSalesChart: (period: 'week' | 'month' | 'year' = 'week') =>
-    api.get('/dashboard/sales-chart', { params: { period } }),
-  
+  getSalesChart: (period: "week" | "month" | "year" = "week") =>
+    api.get("/dashboard/sales-chart", { params: { period } }),
+
   // Get low stock alerts
-  getLowStockAlerts: () => api.get('/dashboard/low-stock-alerts'),
+  getLowStockAlerts: () => api.get("/dashboard/low-stock-alerts"),
 };
 
 export const reportsAPI = {
@@ -286,28 +295,26 @@ export const reportsAPI = {
   generateSalesReport: (params: {
     startDate: string;
     endDate: string;
-    type: 'summary' | 'detailed';
-  }) => api.post('/reports/sales', params),
-  
+    type: "summary" | "detailed";
+  }) => api.post("/reports/sales", params),
+
   // Generate inventory report
-  generateInventoryReport: (params: {
-    category?: string;
-    status?: string;
-  }) => api.post('/reports/inventory', params),
-  
+  generateInventoryReport: (params: { category?: string; status?: string }) =>
+    api.post("/reports/inventory", params),
+
   // Generate milk collection report
   generateMilkReport: (params: {
     startDate: string;
     endDate: string;
     farmerId?: string;
-  }) => api.post('/reports/milk-collection', params),
-  
+  }) => api.post("/reports/milk-collection", params),
+
   // Download report
-  downloadReport: (reportId: string, format: 'pdf' | 'excel' = 'pdf') =>
+  downloadReport: (reportId: string, format: "pdf" | "excel" = "pdf") =>
     api.get(`/reports/download/${reportId}`, {
       params: { format },
-      responseType: 'blob',
+      responseType: "blob",
     }),
 };
 
-export default api; 
+export default api;

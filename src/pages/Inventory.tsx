@@ -34,7 +34,8 @@ import { ProductDeleteDialog } from "@/components/inventory/ProductDeleteDialog"
 import { StockAdjustmentDialog } from "@/components/inventory/StockAdjustmentDialog";
 import { StockHistoryDialog } from "@/components/inventory/StockHistoryDialog";
 import { useToast } from "@/hooks/use-toast";
-import { format, isBefore, parseISO, addDays } from "date-fns";
+import { formatDisplayDate } from "@/lib/dateFormat";
+import { isBefore, parseISO, addDays } from "date-fns";
 
 
 export default function Inventory() {
@@ -337,7 +338,7 @@ export default function Inventory() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span>{format(parseISO(item.expiryDate), "MMM dd, yyyy")}</span>
+                        <span>{formatDisplayDate(item.expiryDate)}</span>
                         {getExpiryStatus(item.expiryDate).icon}
                       </div>
                     </TableCell>
