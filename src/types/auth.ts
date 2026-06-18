@@ -1,14 +1,51 @@
+export interface ProfileSubscriptionPlan {
+  id: number;
+  name: string;
+  durationDays: number;
+}
+
+export interface ProfileSubscription {
+  id: number;
+  planId: number;
+  startDate: string;
+  endDate: string;
+  planPrice: string;
+  status: "active" | "inactive" | "expired";
+  plan?: ProfileSubscriptionPlan;
+}
+
+export interface UserProfile {
+  profilePictureUrl: string | null;
+  id: number;
+  dairyCode: string | null;
+  name: string;
+  email: string;
+  phone: string; 
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  referralCode?: string;
+  createdAt?: string;
+  subscription?: ProfileSubscription | null;
+}
+
 export interface User {
   id: number;
+  dairyCode: string;
   name: string;
   phone: string;
   dairyId: number | null;
   email?: string;
   roleId: number;
+  referralCode?: string;
   username?: string | null;
   isActive?: boolean;
   profilePicture?: string | null;
   address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;

@@ -44,10 +44,12 @@ import {
 import { useQuery, useMutation } from "../hooks/useApi";
 import { apiCall } from "../lib/apiCall";
 import { allRoutes } from "../lib/apiRoutes";
-import { useAuth } from "../contexts/AuthContext";
+import api from "../lib/axios";
 import { formatDisplayDate } from "../lib/dateFormat";
 import { DateInput } from "../components/ui/date-input";
-import { Plus, Edit, Trash2, Calendar, CreditCard, DollarSign, Filter, X } from "lucide-react";
+import { toast } from "../hooks/use-toast";
+import { Plus, Edit, Trash2, Calendar, CreditCard, Filter, X, Download } from "lucide-react";
+import { toast as notify } from "react-toastify";
 
 interface Payment {
   id: number;
@@ -56,6 +58,9 @@ interface Payment {
   amount: string;
   paidAt: string;
   note: string;
+  type?: string;
+  paymentMethod?: string;
+  paymentType?: string;
   createdAt?: string;
   updatedAt?: string;
   farmer?: {
@@ -71,14 +76,35 @@ interface Farmer {
   phone: string;
 }
 
+function isPaymentEditable(createdAt?: string) {
+  if (!createdAt) return false;
+
+  const createdDate = new Date(createdAt);
+  if (Number.isNaN(createdDate.getTime())) return false;
+
+  const today = new Date();
+  return (
+    createdDate.getFullYear() === today.getFullYear() &&
+    createdDate.getMonth() === today.getMonth() &&
+    createdDate.getDate() === today.getDate()
+  );
+}
+
+function formatPaymentField(value?: string) {
+  if (!value) return "-";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+const PAYMENT_METHODS = ["cash", "upi", "bank"] as const;
+
 const PaymentManagement = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
 
   // Filter states
   const [selectedFarmer, setSelectedFarmer] = useState<string>("all");
@@ -90,6 +116,7 @@ const PaymentManagement = () => {
     farmerId: "",
     amount: "",
     paidAt: new Date().toISOString().split('T')[0],
+    paymentMethod: "cash",
     note: "",
   });
 
@@ -185,6 +212,7 @@ const PaymentManagement = () => {
       farmerId: "",
       amount: "",
       paidAt: new Date().toISOString().split('T')[0],
+      paymentMethod: "cash",
       note: "",
     });
   };
@@ -203,6 +231,7 @@ const PaymentManagement = () => {
       farmerId: parseInt(formData.farmerId),
       amount: parseFloat(formData.amount),
       paidAt: formData.paidAt,
+      paymentMethod: formData.paymentMethod,
       note: formData.note,
     };
 
@@ -219,7 +248,8 @@ const PaymentManagement = () => {
     setFormData({
       farmerId: payment.farmerId.toString(),
       amount: payment.amount.toString(),
-      paidAt: payment.paidAt.split('T')[0], // Extract date part from ISO string
+      paidAt: payment.paidAt.split('T')[0],
+      paymentMethod: payment.paymentMethod || "cash",
       note: payment.note,
     });
     setIsFormOpen(true);
@@ -251,6 +281,44 @@ const PaymentManagement = () => {
 
   const applyFilters = () => {
     fetchPayments();
+  };
+
+  const handleDownloadPaymentStatement = async () => {
+    if (selectedFarmer === "all") {
+      notify.error(t("payments.selectFarmerForStatement"));
+      return;
+    }
+
+    setPdfDownloading(true);
+    try {
+      const url = allRoutes.reports.paymentStatementPdf(
+        selectedFarmer,
+        startDate,
+        endDate,
+      );
+      const response = await api.get(url, { responseType: "blob" });
+      const blob = response.data;
+
+      if (blob.type?.includes("application/json")) {
+        const errorData = JSON.parse(await blob.text());
+        notify.error(errorData.message || t("payments.paymentStatementDownloadError"));
+        return;
+      }
+
+      const fileName = `payment-statement-${selectedFarmer}-${startDate || "all"}-${endDate || "all"}.pdf`;
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(objectUrl);
+      notify.success(t("payments.paymentStatementDownloadSuccess"));
+    } catch (error) {
+      console.error("Error downloading payment statement:", error);
+      notify.error(t("payments.paymentStatementDownloadError"));
+    } finally {
+      setPdfDownloading(false);
+    }
   };
 
   const payments: Payment[] = paymentsData?.data || [];
@@ -333,11 +401,22 @@ const PaymentManagement = () => {
 
       {/* Payments List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Calendar className="h-5 w-5" />
             {t("payments.paymentHistory")}
           </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPaymentStatement}
+            disabled={pdfDownloading}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {pdfDownloading
+              ? t("common.loading")
+              : t("payments.downloadPaymentStatement")}
+          </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -362,6 +441,9 @@ const PaymentManagement = () => {
                     <TableHead>{t("payments.farmerName")}</TableHead>
                     <TableHead>{t("payments.paymentDate")}</TableHead>
                     <TableHead>{t("payments.amount")}</TableHead>
+                    <TableHead>{t("payments.type")}</TableHead>
+                    <TableHead>{t("payments.paymentMethod")}</TableHead>
+                    <TableHead>{t("payments.paymentType")}</TableHead>
                     <TableHead>{t("payments.note")}</TableHead>
                     <TableHead>{t("payments.actions")}</TableHead>
                   </TableRow>
@@ -378,24 +460,37 @@ const PaymentManagement = () => {
                       <TableCell className="font-semibold">
                         ₹{parseFloat(payment.amount).toFixed(2)}
                       </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{formatPaymentField(payment.type)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{formatPaymentField(payment.paymentMethod)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="default">{formatPaymentField(payment.paymentType)}</Badge>
+                      </TableCell>
                       <TableCell>{payment.note || "-"}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(payment)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(payment)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        {isPaymentEditable(payment.createdAt) ? (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(payment)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(payment)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -456,6 +551,25 @@ const PaymentManagement = () => {
                 onChange={(value) => handleInputChange("paidAt", value)}
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">{t("payments.paymentMethod")} *</Label>
+              <Select
+                value={formData.paymentMethod}
+                onValueChange={(value) => handleInputChange("paymentMethod", value)}
+              >
+                <SelectTrigger id="paymentMethod">
+                  <SelectValue placeholder={t("payments.selectPaymentMethod")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((method) => (
+                    <SelectItem key={method} value={method}>
+                      {t(`payments.paymentMethods.${method}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

@@ -30,6 +30,15 @@ api.interceptors.request.use(
     const language = localStorage.getItem("i18nextLng") || "en";
     config.headers["Accept-Language"] = language;
 
+    // FormData must not use application/json — browser sets multipart boundary
+    if (config.data instanceof FormData && config.headers) {
+      if (typeof config.headers.delete === "function") {
+        config.headers.delete("Content-Type");
+      } else {
+        delete config.headers["Content-Type"];
+      }
+    }
+
     return config;
   },
   (error) => {

@@ -3,13 +3,13 @@ import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard, Filter, X } from "lucide-react";
+import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard, Filter, X, User } from "lucide-react";
+import { cn, getProfilePictureUrl } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -51,6 +58,7 @@ import { allRoutes } from "@/lib/apiRoutes";
 import { ApiResponse } from "@/types/auth";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { DateInput } from "@/components/ui/date-input";
+import { toast } from "sonner";
 
 // Interface for milk purchase history
 interface MilkPurchaseHistory {
@@ -72,9 +80,29 @@ interface Farmer {
   email?: string;
   address?: string;
   dairyId: number;
-  currentMonthMilkAmount?: string;
+  pendingPayment?: string;
+  profilePicture?: string | null;
+  profilePictureUrl?: string | null;
+  user?: {
+    profilePictureUrl?: string | null;
+    profilePicture?: string | null;
+  };
   createdAt?: string;
   updatedAt?: string;
+}
+
+function getFarmerProfilePicture(farmer: Farmer) {
+  return getProfilePictureUrl(farmer);
+}
+
+function getFarmerInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 // Farmer form schema based on API requirements
@@ -88,10 +116,13 @@ const farmerSchema = z.object({
 
 type FarmerFormData = z.infer<typeof farmerSchema>;
 
+const PAYMENT_METHODS = ["cash", "upi", "bank"] as const;
+
 // Payment form schema
 const paymentSchema = z.object({
   amount: z.number().min(1, "Amount must be greater than 0"),
   paidAt: z.string().min(1, "Payment date is required"),
+  paymentMethod: z.enum(PAYMENT_METHODS),
   note: z.string().optional(),
 });
 
@@ -136,6 +167,7 @@ export default function Customers() {
     defaultValues: {
       amount: 0,
       paidAt: new Date().toISOString().split('T')[0],
+      paymentMethod: "cash",
       note: "",
     },
   });
@@ -249,6 +281,7 @@ export default function Customers() {
     setSelectedFarmerForPayment(farmer);
     setPaymentValue("amount", 0);
     setPaymentValue("paidAt", new Date().toISOString().split('T')[0]);
+    setPaymentValue("paymentMethod", "cash");
     setPaymentValue("note", "");
     setShowPaymentDialog(true);
   };
@@ -263,6 +296,7 @@ export default function Customers() {
         farmerId: selectedFarmerForPayment.id,
         amount: data.amount,
         paidAt: data.paidAt,
+        paymentMethod: data.paymentMethod,
         note: data.note || "",
       };
 
@@ -306,6 +340,16 @@ export default function Customers() {
       (farmer.email?.toLowerCase().includes(query) ?? false)
     );
   });
+
+  const formatCurrency = (amount?: number) => {
+    if (!amount) return "₹0";
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -509,6 +553,36 @@ export default function Customers() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="paymentMethod">{t("payments.paymentMethod")} *</Label>
+              <Select
+                value={watchPayment("paymentMethod")}
+                onValueChange={(value) =>
+                  setPaymentValue(
+                    "paymentMethod",
+                    value as PaymentFormData["paymentMethod"],
+                    { shouldValidate: true },
+                  )
+                }
+              >
+                <SelectTrigger id="paymentMethod">
+                  <SelectValue placeholder={t("payments.selectPaymentMethod")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((method) => (
+                    <SelectItem key={method} value={method}>
+                      {t(`payments.paymentMethods.${method}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {paymentErrors.paymentMethod && (
+                <p className="text-sm text-destructive">
+                  {paymentErrors.paymentMethod.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="note">{t("payments.note")}</Label>
               <Input
                 id="note"
@@ -547,113 +621,179 @@ export default function Customers() {
           <p className="mt-2 text-muted-foreground">{t("farmers.loading")}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFarmers.map((farmer) => (
-            <Card key={farmer.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  {farmer.name}
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditFarmer(farmer)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handlePayment(farmer)}
-                      title={t("payments.payFarmer")}
-                    >
-                      <CreditCard className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            {t("farmers.deleteConfirm")}
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {t("farmers.deleteDescription")}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>
-                            {t("farmers.cancel")}
-                          </AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteFarmer(farmer.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            {t("farmers.delete")}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardTitle>
-                <CardDescription>
-                  ID: FRM-{String(farmer.id).padStart(4, "0")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    {farmer.phone}
-                  </div>
-                  {farmer.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      {farmer.email}
-                    </div>
-                  )}
-                  {farmer.address && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      {farmer.address}
-                    </div>
-                  )}
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredFarmers.map((farmer) => {
+            const pendingAmount = Number(farmer.pendingPayment) || 0;
+            const hasPendingPayment = pendingAmount > 0;
+            const profilePicture = getFarmerProfilePicture(farmer);
 
-                <div className="pt-4 border-t space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Current Month Amount:
-                    </span>
-                    <span className="font-medium">
-                      {farmer.currentMonthMilkAmount}
-                    </span>
+            return (
+              <Card
+                key={farmer.id}
+                className="group border border-border/60 shadow-sm hover:shadow-md hover:border-primary/25 transition-all duration-200 overflow-hidden"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start gap-3">
+                    <div className="h-14 w-14 shrink-0 rounded-full bg-green-50 border border-green-100 ring-2 ring-green-100 flex items-center justify-center overflow-hidden">
+                      {profilePicture ? (
+                        <img
+                          src={profilePicture}
+                          alt={farmer.name}
+                          crossOrigin="anonymous"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : getFarmerInitials(farmer.name) ? (
+                        <span className="text-primary font-semibold text-base">
+                          {getFarmerInitials(farmer.name)}
+                        </span>
+                      ) : (
+                        <User className="h-6 w-6 text-primary/70" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base font-semibold leading-tight truncate">
+                            {farmer.name}
+                          </CardTitle>
+                          <Badge
+                            variant="secondary"
+                            className="mt-1.5 font-mono text-[11px] tracking-wide bg-muted/80"
+                          >
+                            FRM-{String(farmer.id).padStart(4, "0")}
+                          </Badge>
+                        </div>
+
+                        <div className="flex shrink-0 gap-0.5 opacity-90 group-hover:opacity-100">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+                            onClick={() => handleEditFarmer(farmer)}
+                            title={t("farmers.edit")}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+                            onClick={() => handlePayment(farmer)}
+                            title={t("payments.payFarmer")}
+                          >
+                            <CreditCard className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive"
+                                title={t("farmers.delete")}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  {t("farmers.deleteConfirm")}
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {t("farmers.deleteDescription")}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>
+                                  {t("farmers.cancel")}
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteFarmer(farmer.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {t("farmers.delete")}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  {/* {farmer.address && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Address:
+                </CardHeader>
+
+                <CardContent className="space-y-3 pt-0">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2.5 text-sm min-w-0">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-background shadow-sm">
+                        <Phone className="h-4 w-4 text-primary" />
                       </span>
-                      <span className="text-sm">{farmer.address}</span>
+                      <span className="truncate font-medium">{farmer.phone}</span>
                     </div>
-                  )} */}
-                  {farmer.createdAt && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        {t("farmers.createdAt")}:
-                      </span>
-                      <span className="text-sm">
-                        {formatDisplayDate(farmer.createdAt)}
-                      </span>
+
+                    <div
+                      className={cn(
+                        "flex flex-col justify-center rounded-lg border px-3 py-2.5 min-w-0",
+                        hasPendingPayment
+                          ? "border-amber-200/80 bg-amber-50/80"
+                          : "border-green-200/80 bg-green-50/80"
+                      )}
+                    >
+                      <p className="text-xs text-muted-foreground truncate">
+                        {t("customers.pendingAmount")}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-base font-semibold leading-tight truncate",
+                          hasPendingPayment ? "text-amber-800" : "text-green-800"
+                        )}
+                      >
+                        {formatCurrency(pendingAmount)}
+                      </p>
                     </div>
+                  </div>
+
+                  {hasPendingPayment && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full border-amber-300 bg-amber-50/80 hover:bg-amber-100 text-amber-900"
+                      onClick={() => handlePayment(farmer)}
+                    >
+                      {t("payments.payFarmer")}
+                    </Button>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+
+                  <div className="space-y-2">
+                    {farmer.email && (
+                      <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2.5 text-sm">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-background shadow-sm">
+                          <Mail className="h-4 w-4 text-primary" />
+                        </span>
+                        <span className="truncate">{farmer.email}</span>
+                      </div>
+                    )}
+
+                    {farmer.address && (
+                      <div className="flex items-start gap-3 rounded-lg bg-muted/40 px-3 py-2.5 text-sm">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-background shadow-sm">
+                          <MapPin className="h-4 w-4 text-primary" />
+                        </span>
+                        <span className="line-clamp-2 leading-snug">{farmer.address}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {farmer.createdAt && (
+                    <p className="text-xs text-muted-foreground text-center pt-0.5">
+                      {t("farmers.createdAt")}: {formatDisplayDate(farmer.createdAt)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

@@ -32,17 +32,24 @@ export const apiCall = async (
 
     // Build headers safely
     const finalHeaders = { ...(config.headers as Record<string, string>) };
-    if (!isFormData && !finalHeaders['Content-Type']) {
-      finalHeaders['Content-Type'] = 'application/json';
+    if (!isFormData && !finalHeaders["Content-Type"]) {
+      finalHeaders["Content-Type"] = "application/json";
+    }
+
+    const requestConfig: Record<string, unknown> = {
+      ...config,
+      headers: finalHeaders,
+    };
+
+    if (isFormData) {
+      delete (requestConfig.headers as Record<string, string>)["Content-Type"];
+      requestConfig.transformRequest = [(body: unknown) => body];
     }
 
     const response =
       method === "get" || method === "delete"
-        ? await api[method](url, config)
-        : await api[method](url, data, {
-            ...config,
-            headers: finalHeaders,
-          });
+        ? await api[method](url, requestConfig)
+        : await api[method](url, data, requestConfig);
 
     return { success: true, data: response.data };
   } catch (error: unknown) {

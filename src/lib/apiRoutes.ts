@@ -9,6 +9,12 @@ export const allRoutes = {
     refreshToken: "/auth/refresh",
     logout: "/auth/logout",
   },
+  users: {
+    profile: "/admin/users/profile",
+    updateProfile: "/admin/users/update-profile",
+    updateAddress: "/admin/users/update-address",
+    updateProfilePicture: "/admin/users/update-profile-picture",
+  },
   farmers: {
     getFarmers: "/admin/farmers",
     addFarmer: "/admin/farmers",
@@ -66,6 +72,8 @@ export const allRoutes = {
     todayMilkCollections: "/admin/dairy/dashboard/today-milk-collections",
     farmersWithPendingPayments:
       "/admin/dairy/dashboard/farmers-with-pending-payments",
+    milkProgressPrevious12Months:
+      "/admin/dairy/dashboard/milk-progress-previous-12-month",
     lowStockAlerts: "/admin/dashboard/low-stock-alerts",
     recentActivity: "/admin/dashboard/recent-activity",
   },
@@ -99,6 +107,30 @@ export const allRoutes = {
       }
 
       return url;
+    },
+    milkReportPdf: (
+      farmerId: string | number = "",
+      startDate?: string,
+      endDate?: string,
+    ) => {
+      const params = [
+        `farmerId=${farmerId ?? ""}`,
+        `startDate=${startDate ?? ""}`,
+        `endDate=${endDate ?? ""}`,
+      ];
+      return `/admin/pdf/milk-report?${params.join("&")}`;
+    },
+    paymentStatementPdf: (
+      farmerId: string | number = "",
+      startDate?: string,
+      endDate?: string,
+    ) => {
+      const params = [
+        `farmerId=${farmerId ?? ""}`,
+        `startDate=${startDate ?? ""}`,
+        `endDate=${endDate ?? ""}`,
+      ];
+      return `/admin/pdf/payment-report?${params.join("&")}`;
     },
     sales: "/admin/reports/sales",
     inventory: "/admin/reports/inventory",

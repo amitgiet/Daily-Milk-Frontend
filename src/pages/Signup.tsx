@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Milk, User, Phone, Hash, Home } from "lucide-react";
+import { Milk, User, Phone, Hash, Home, Building } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,7 @@ import Logo from "../assets/pnglogo.png"
 import { toast } from "sonner";
 
 const signupSchema = z.object({
+  dairyCode: z.string().min(1, "Dairy code is required"),
   name: z.string().min(2, "Full name must be at least 2 characters"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
   referralCode: z.string().optional(),
@@ -52,7 +53,7 @@ export default function Signup() {
     setSuccess("");
 
     try {
-      const success = await registerUser(data.name, data.phone, data.password, data.village);
+      const success = await registerUser(data.dairyCode,data.name, data.phone, data.password, data.village);
       
       if (success) {
         toast.success("Account created successfully! Please login to continue.");
@@ -98,7 +99,24 @@ export default function Signup() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-                         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Dairy Code */}
+              <div className="space-y-2">
+                <Label htmlFor="dairyCode" className="flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  {t('signup.dairyCode')} *
+                </Label>
+                <Input
+                  id="dairyCode"
+                  type="text"
+                  placeholder={t('signup.dairyCodePlaceholder')}
+                  {...register("dairyCode")}
+                  className={errors.dairyCode ? "border-destructive" : ""}
+                />
+                {errors.dairyCode && (
+                  <p className="text-sm text-destructive">{errors.dairyCode.message}</p>
+                )}
+              </div>
                {/* Full Name */}
                <div className="space-y-2">
                  <Label htmlFor="name" className="flex items-center gap-2">

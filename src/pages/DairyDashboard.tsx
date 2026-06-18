@@ -53,6 +53,7 @@ import { allRoutes } from "@/lib/apiRoutes";
 import {
   DashboardStats,
   FarmerPendingPaymentEntry,
+  MilkProgressReportEntry,
   TodayMilkCollectionEntry,
 } from "@/types/dashboard";
 import { format } from "date-fns";
@@ -83,6 +84,31 @@ function getLast7DaysRange() {
     startDate: start.toISOString().split("T")[0],
     endDate: end.toISOString().split("T")[0],
   };
+}
+
+function buildMilkProgressChartData(entries: MilkProgressReportEntry[]) {
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, index) => {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - (11 - index), 1);
+    return {
+      year: monthDate.getFullYear(),
+      month: monthDate.getMonth() + 1,
+      label: format(monthDate, "MMM yy"),
+      liters: 0,
+    };
+  });
+
+  const monthMap = new Map(
+    months.map((month) => [`${month.year}-${month.month}`, month]),
+  );
+
+  for (const entry of entries) {
+    const month = monthMap.get(`${entry.year}-${entry.month}`);
+    if (!month) continue;
+    month.liters = Math.round(Number(entry.totalQuantity || 0) * 10) / 10;
+  }
+
+  return months.map(({ label, liters }) => ({ label, liters }));
 }
 
 function buildWeeklyMilkData(
@@ -185,6 +211,16 @@ export default function DairyDashboard() {
     [t],
   );
 
+  const monthlyChartConfig = useMemo<ChartConfig>(
+    () => ({
+      liters: {
+        label: t("dashboard.liters"),
+        color: "hsl(var(--primary))",
+      },
+    }),
+    [t],
+  );
+
   const shiftChartConfig = useMemo(
     () => createShiftChartConfig(t("dashboard.morning"), t("dashboard.evening")),
     [t],
@@ -229,6 +265,16 @@ export default function DairyDashboard() {
   );
 
   const {
+    data: milkProgressData,
+    loading: milkProgressLoading,
+    error: milkProgressError,
+    execute: fetchMilkProgressReport,
+  } = useQuery(
+    () => apiCall(allRoutes.dashboard.milkProgressPrevious12Months, "get"),
+    { autoExecute: true },
+  );
+
+  const {
     data: todayMilkCollectionsData,
     loading: todayMilkLoading,
     error: todayMilkError,
@@ -250,6 +296,8 @@ export default function DairyDashboard() {
   const stats: DashboardStats = dashboardStats?.data?.data || {};
   const milkEntries: MilkEntry[] =
     weeklyMilkData?.data?.data || weeklyMilkData?.data || [];
+  const milkProgressEntries: MilkProgressReportEntry[] =
+    milkProgressData?.data?.data || milkProgressData?.data || [];
   const todayMilkEntries: TodayMilkCollectionEntry[] =
     todayMilkCollectionsData?.data || [];
   const pendingFarmerEntries: FarmerPendingPaymentEntry[] =
@@ -263,6 +311,11 @@ export default function DairyDashboard() {
   const weeklyChartData = useMemo(
     () => buildWeeklyMilkData(milkEntries, stats.weeklyMilkCollection),
     [milkEntries, stats.weeklyMilkCollection],
+  );
+
+  const monthlyChartData = useMemo(
+    () => buildMilkProgressChartData(milkProgressEntries),
+    [milkProgressEntries],
   );
 
   const farmerChartData = useMemo(
@@ -332,6 +385,7 @@ export default function DairyDashboard() {
   const handleRefresh = () => {
     fetchStats();
     fetchWeeklyMilk();
+    fetchMilkProgressReport();
     fetchTodayMilkCollections();
     fetchPendingFarmers();
   };
@@ -478,6 +532,73 @@ export default function DairyDashboard() {
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            {t("dashboard.monthlyMilkCollection")}
+          </CardTitle>
+          <CardDescription className="text-xs">
+            {t("dashboard.monthlyMilkCollectionDescription")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 pb-0">
+          {milkProgressLoading ? (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              {t("common.loading")}
+            </div>
+          ) : milkProgressError ? (
+            <div className="h-[300px] flex items-center justify-center text-sm text-destructive">
+              {t("common.error")}
+            </div>
+          ) : (
+            <ChartContainer
+              config={monthlyChartConfig}
+              className="h-[300px] w-full aspect-auto"
+            >
+              <BarChart data={monthlyChartData} accessibilityLayer margin={{ bottom: 8 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={10}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  label={{
+                    value: t("dashboard.liters"),
+                    angle: -90,
+                    position: "insideLeft",
+                    style: { fill: "hsl(var(--muted-foreground))" },
+                  }}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent formatter={(value) => `${value}L`} />
+                  }
+                />
+                <Bar
+                  dataKey="liters"
+                  fill="var(--color-liters)"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={56}
+                >
+                  <LabelList
+                    dataKey="liters"
+                    position="top"
+                    formatter={(value: number) => `${value}L`}
+                    className="fill-foreground text-xs font-medium"
+                  />
+                </Bar>
+              </BarChart>
             </ChartContainer>
           )}
         </CardContent>

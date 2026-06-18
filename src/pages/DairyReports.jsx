@@ -26,9 +26,11 @@ import {
 } from "@/components/ui/select";
 import { allRoutes } from "@/lib/apiRoutes";
 import { apiCall } from "@/lib/apiCall";
+import api from "@/lib/axios";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { DateInput } from "@/components/ui/date-input";
-import { Filter, X,Milk, RefreshCw } from "lucide-react";
+import { Filter, X, Milk, Download } from "lucide-react";
+import { toast } from "react-toastify";
 
 function getTodayDate() {
   return new Date().toISOString().split("T")[0];
@@ -43,6 +45,7 @@ const DairyReports = () => {
   const [selectedShift, setSelectedShift] = useState("all");
   const [startDate, setStartDate] = useState(getTodayDate);
   const [endDate, setEndDate] = useState(getTodayDate);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
 
   const fetchMilkEntries = async () => {
     setMilkLoading(true);
@@ -96,6 +99,36 @@ const DairyReports = () => {
     setEndDate(getTodayDate());
   };
 
+  const handleDownloadPdf = async () => {
+    setPdfDownloading(true);
+    try {
+      const farmerId = selectedFarmer === "all" ? "" : selectedFarmer;
+      const url = allRoutes.reports.milkReportPdf(farmerId, startDate, endDate);
+      const response = await api.get(url, { responseType: "blob" });
+      const blob = response.data;
+
+      if (blob.type?.includes("application/json")) {
+        const errorData = JSON.parse(await blob.text());
+        toast.error(errorData.message || t("milkReports.pdfDownloadError"));
+        return;
+      }
+
+      const fileName = `Milk-Collection-Statement-${startDate || "all"}-${endDate || "all"}.pdf`;
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(objectUrl);
+      toast.success(t("milkReports.pdfDownloadSuccess"));
+    } catch (error) {
+      console.error("Error downloading milk report PDF:", error);
+      toast.error(t("milkReports.pdfDownloadError"));
+    } finally {
+      setPdfDownloading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -108,6 +141,7 @@ const DairyReports = () => {
             {t("milkReports.description")}
           </p>
         </div>
+        
       </div>
 
 
@@ -189,8 +223,20 @@ const DairyReports = () => {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">{t("milkReports.milkCollectionReport")}</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Milk className="h-5 w-5" />
+            {t("milkReports.milkCollectionReport")}
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPdf}
+            disabled={pdfDownloading}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {pdfDownloading ? t("common.loading") : t("milkReports.downloadPdf")}
+          </Button>
         </CardHeader>
         <CardContent>
           {milkLoading ? (

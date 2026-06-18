@@ -87,6 +87,18 @@ export interface FarmersWithPendingPaymentsResponse {
   data: FarmerPendingPaymentEntry[];
 }
 
+export interface MilkProgressReportEntry {
+  year: number;
+  month: number;
+  totalQuantity: string | number;
+}
+
+export interface MilkProgressReportResponse {
+  success: boolean;
+  message?: string;
+  data: MilkProgressReportEntry[];
+}
+
 export interface LowStockItem {
   name: string;
   current: number;

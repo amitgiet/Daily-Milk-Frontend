@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiCall } from '../lib/apiCall';
 import { allRoutes } from '../lib/apiRoutes';
-import { User, LoginResponse, RegisterResponse, RefreshTokenResponse, ApiResponse, DairySubscription } from '../types/auth';
+import { getProfilePictureUrl } from '../lib/utils';
+import { User, LoginResponse, RegisterResponse, RefreshTokenResponse, ApiResponse, DairySubscription, UserProfile } from '../types/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -10,13 +11,15 @@ interface AuthContextType {
   hasSubscription: boolean;
   dairySubscription: DairySubscription | null;
   login: (phone: string, password: string) => Promise<boolean>;
-  register: (name: string, phone: string, password: string, village: string) => Promise<boolean>;
+  register: (dairyCode: string,name: string, phone: string, password: string, village: string) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   forgotPassword: (phone: string) => Promise<boolean>;
   verifyOTP: (phone: string, otp: string) => Promise<boolean>;
   changePassword: (phone: string, newPassword: string, confirmPassword: string) => Promise<boolean>;
   refreshToken: () => Promise<boolean>;
+  updateUser: (updates: Partial<User>) => void;
+  syncFromProfile: (profile: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -148,10 +151,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (name: string, phone: string, password: string, village: string): Promise<boolean> => {
+  const register = async (dairyCode: string,name: string, phone: string, password: string, village: string): Promise<boolean> => {
     try {
-      console.log(name, phone, password, village);
-      const data: Record<string, string> = { name, phone, password };
+      console.log(dairyCode, name, phone, password, village);
+      const data: Record<string, string> = { dairyCode, name, phone, password };
       if (village) {
         data.village = village;
       }
@@ -232,6 +235,62 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return false;
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updatedUser = { ...prev, ...updates };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  };
+
+  const syncFromProfile = (profile: UserProfile) => {
+    let resolvedDairyId = 0;
+
+    setUser((prev) => {
+      if (!prev) return prev;
+      resolvedDairyId = prev.dairyId ?? 0;
+      const updatedUser: User = {
+        ...prev,
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        dairyCode: profile.dairyCode ?? prev.dairyCode,
+        address: profile.address ?? prev.address,
+        city: profile.city ?? prev.city,
+        state: profile.state ?? prev.state,
+        pincode: profile.pincode ?? prev.pincode,
+        profilePicture:
+          getProfilePictureUrl(profile) ?? prev.profilePicture,
+        referralCode: profile.referralCode ?? prev.referralCode,
+        createdAt:
+          profile.createdAt ??
+          profile.subscription?.startDate ??
+          prev.createdAt,
+      };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+
+    const subscriptionActive = profile.subscription?.status === "active";
+    const dairySub: DairySubscription | null = profile.subscription
+      ? {
+          id: profile.subscription.id,
+          dairyId: resolvedDairyId,
+          planId: profile.subscription.planId,
+          startDate: profile.subscription.startDate,
+          endDate: profile.subscription.endDate,
+          status: profile.subscription.status,
+        }
+      : null;
+
+    setHasSubscription(subscriptionActive);
+    setDairySubscription(dairySub);
+    localStorage.setItem("hasSubscription", JSON.stringify(subscriptionActive));
+    localStorage.setItem("dairySubscription", JSON.stringify(dairySub));
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated,
@@ -246,6 +305,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     verifyOTP,
     changePassword,
     refreshToken,
+    updateUser,
+    syncFromProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

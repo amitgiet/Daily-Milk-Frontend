@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import {
   Card,
   CardContent,
@@ -8,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
@@ -25,10 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Settings as SettingsIcon,
   User,
   Bell,
-  Database,
   Shield,
   Eye,
   EyeOff,
@@ -40,12 +41,22 @@ import {
   MapPin,
   Clock,
   Milk,
+  CreditCard,
+  Crown,
+  Camera,
+  Pencil,
+  Check,
+  Settings as SettingsGear,
+  ChevronRight,
+  CircleHelp,
 } from "lucide-react";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { toast } from "react-toastify";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserRole } from "@/types/auth";
+import { UserRole, ProfileSubscription, UserProfile } from "@/types/auth";
+import { formatDisplayDateLong } from "@/lib/dateFormat";
+import { cn, getProfilePictureUrl, resolveImageUrl } from "@/lib/utils";
 
 interface MilkRateSettings {
   fatRate: number | string;
@@ -53,10 +64,55 @@ interface MilkRateSettings {
   formulaType: "fatOnly" | "fatSnf";
 }
 
+type AccountTab = "profile" | "subscription" | "address" | "milkRates" | "security" | "notifications";
+
+function formatMemberSince(value?: string | null) {
+  if (!value) return "-";
+
+  const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const parsed = dateOnlyMatch
+    ? new Date(
+        Number(dateOnlyMatch[1]),
+        Number(dateOnlyMatch[2]) - 1,
+        Number(dateOnlyMatch[3])
+      )
+    : new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return format(parsed, "MMMM d, yyyy");
+}
+
+function formatAddressLine(user?: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+}) {
+  if (!user) return "";
+
+  const locationParts = [user.city, user.state].filter(Boolean);
+  const locationLine = [
+    locationParts.join(", "),
+    user.pincode ? `- ${user.pincode}` : "",
+  ]
+    .join(" ")
+    .trim();
+
+  return [user.address, locationLine].filter(Boolean).join(", ");
+}
+
+function getBillingCycleLabel(durationDays: number, t: (key: string) => string) {
+  if (durationDays === 30) return t("subscription.monthly");
+  if (durationDays === 90) return t("subscription.quarterly");
+  if (durationDays === 180) return t("subscription.biannual");
+  if (durationDays === 365) return t("subscription.annual");
+  return `${durationDays} days`;
+}
+
 export default function Settings() {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const navigate = useNavigate();
+  const { user, dairySubscription, hasSubscription, updateUser, syncFromProfile } = useAuth();
   const [show2FADialog, setShow2FADialog] = useState(false);
   const [showLoginHistoryDialog, setShowLoginHistoryDialog] = useState(false);
   const [showTerminateSessionsDialog, setShowTerminateSessionsDialog] =
@@ -83,19 +139,136 @@ export default function Settings() {
   });
   const [isLoadingMilkRates, setIsLoadingMilkRates] = useState(false);
   const [isSavingMilkRates, setIsSavingMilkRates] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [userData, setUserData] = useState(user);
+  const [activeTab, setActiveTab] = useState<AccountTab>("profile");
+  const [showEditProfileDialog, setShowEditProfileDialog] = useState(false);
+  const [showEditAddressDialog, setShowEditAddressDialog] = useState(false);
+  const [profileSubscription, setProfileSubscription] =
+    useState<ProfileSubscription | null>(null);
+  const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
+  const profilePictureInputRef = useRef<HTMLInputElement>(null);
 
-  // Load milk rate settings on component mount (only for admin users)
+  const MAX_PROFILE_PICTURE_SIZE = 5 * 1024 * 1024;
+
   useEffect(() => {
-    // Only load milk rate settings if user exists and is an admin
-    if (user && user.roleId === UserRole.ADMIN) {
+    if (user) setUserData(user);
+  }, [user]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+
+    setIsLoadingProfile(true);
+    try {
+      const response = await apiCall(allRoutes.users.profile, "get");
+      if (response.success && response.data) {
+        const profile = (response.data.data || response.data) as UserProfile;
+        setProfileSubscription(profile.subscription ?? null);
+        syncFromProfile(profile);
+        setUserData((prev) =>
+          prev
+            ? {
+                ...prev,
+                name: profile.name,
+                email: profile.email,
+                phone: profile.phone,
+                dairyCode: profile.dairyCode ?? prev.dairyCode,
+                address: profile.address ?? prev.address,
+                city: profile.city ?? prev.city,
+                state: profile.state ?? prev.state,
+                pincode: profile.pincode ?? prev.pincode,
+                referralCode: profile.referralCode ?? prev.referralCode,
+                profilePicture:
+                  getProfilePictureUrl(profile) ?? prev.profilePicture,
+                createdAt:
+                  profile.createdAt ??
+                  profile.subscription?.startDate ??
+                  prev.createdAt,
+              }
+            : prev,
+        );
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+      toast.error(t("settings.failedToLoadProfile"));
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user?.id]);
+
+  const handleProfilePictureSelect = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("settings.invalidProfilePictureType"));
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_PROFILE_PICTURE_SIZE) {
+      toast.error(t("settings.profilePictureTooLarge"));
+      event.target.value = "";
+      return;
+    }
+
+    setIsUploadingProfilePicture(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await apiCall(
+        allRoutes.users.updateProfilePicture,
+        "put",
+        formData,
+      );
+
+      if (response.success) {
+        const profilePictureUrl = resolveImageUrl(
+          (response.data as { data?: { profilePictureUrl?: string } })?.data
+            ?.profilePictureUrl,
+        );
+
+        if (profilePictureUrl) {
+          updateUser({ profilePicture: profilePictureUrl });
+          setUserData((prev) =>
+            prev ? { ...prev, profilePicture: profilePictureUrl } : prev,
+          );
+        }
+
+        toast.success(
+          (response.data as { message?: string })?.message ||
+            t("settings.profilePictureUpdated"),
+        );
+      } else {
+        toast.error(t("settings.failedToUpdateProfilePicture"));
+      }
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      toast.error(t("settings.failedToUpdateProfilePicture"));
+    } finally {
+      setIsUploadingProfilePicture(false);
+      event.target.value = "";
+    }
+  };
+
+  // Load milk rate settings on component mount (admin and dairy users)
+  useEffect(() => {
+    if (user && (user.roleId === UserRole.ADMIN || user.roleId === UserRole.DAIRY)) {
       loadMilkRateSettings();
     }
-  }, [user]); // Dependency on user object to ensure it runs when user data is loaded
+  }, [user]);
 
   const loadMilkRateSettings = async () => {
-    // Double-check that only admin users can load milk rate settings
-    if (!user || user.roleId !== UserRole.ADMIN) {
+    if (!user || (user.roleId !== UserRole.ADMIN && user.roleId !== UserRole.DAIRY)) {
       return;
     }
     
@@ -185,22 +358,20 @@ export default function Settings() {
       return;
     }
     const response = await apiCall(allRoutes.auth.changePassword, "post", {
-      phone: userData.phone,
+      phone: userData?.phone,
       new_password: passwordData.newPassword,
       confirm_password: passwordData.confirmPassword,
-      
-    }); 
+    });
     if (response.success) {
       toast.success(t("settings.passwordChanged"));
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
     } else {
       toast.error(t("settings.failedToChangePassword")); 
     }
-    setShowPasswordDialog(false);
-    setPasswordData({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
   };
 
   const handleEnable2FA = () => {
@@ -360,28 +531,676 @@ export default function Settings() {
   };
 
   const handleUpdateProfile = async () => {
-    const response = await apiCall(
-      allRoutes.farmers.updateFarmer(userData.id),
-      "put",
-      userData
-    );
+    if (!userData?.name?.trim() || !userData?.email?.trim() || !userData?.phone?.trim()) {
+      toast.error(t("settings.fillAllProfileFields"));
+      return;
+    }
+
+    const response = await apiCall(allRoutes.users.updateProfile, "post", {
+      name: userData.name.trim(),
+      email: userData.email.trim(),
+      phone: userData.phone.trim(),
+    });
+
     if (response.success) {
+      const updatedProfile = {
+        name: userData.name.trim(),
+        email: userData.email.trim(),
+        phone: userData.phone.trim(),
+      };
+      updateUser(updatedProfile);
+      setUserData((prev) => (prev ? { ...prev, ...updatedProfile } : prev));
       toast.success(t("settings.profileUpdated"));
+      setShowEditProfileDialog(false);
+      await loadProfile();
     } else {
       toast.error(t("settings.failedToUpdateProfile"));
     }
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{t("settings.title")}</h1>
-        <p className="text-muted-foreground">
-          {t("settings.subtitle")}
+  const handleUpdateAddress = async () => {
+    if (
+      !userData?.address?.trim() ||
+      !userData?.city?.trim() ||
+      !userData?.state?.trim() ||
+      !userData?.pincode?.trim()
+    ) {
+      toast.error(t("settings.fillAddressFields"));
+      return;
+    }
+
+    const updatedAddress = {
+      address: userData.address.trim(),
+      city: userData.city.trim(),
+      state: userData.state.trim(),
+      pincode: userData.pincode.trim(),
+    };
+
+    const response = await apiCall(allRoutes.users.updateAddress, "put", updatedAddress);
+
+    if (response.success) {
+      updateUser(updatedAddress);
+      setUserData((prev) => (prev ? { ...prev, ...updatedAddress } : prev));
+      toast.success(
+        (response.data as { message?: string })?.message ||
+          t("settings.addressUpdated")
+      );
+      setShowEditAddressDialog(false);
+      await loadProfile();
+    } else {
+      toast.error(t("settings.failedToUpdateAddress"));
+    }
+  };
+
+  const isDairyUser = user?.roleId === UserRole.DAIRY;
+  const isSubscriptionActive = profileSubscription
+    ? profileSubscription.status === "active"
+    : hasSubscription && dairySubscription?.status === "active";
+
+  const accountNavItems: { id: AccountTab; icon: typeof User; label: string }[] = [
+    { id: "profile", icon: User, label: t("settings.profile") },
+    { id: "subscription", icon: CreditCard, label: t("settings.subscriptionTab") },
+    { id: "address", icon: MapPin, label: t("settings.addressDetails") },
+    { id: "milkRates", icon: Milk, label: t("settings.milkRateSettings") },
+    { id: "security", icon: Shield, label: t("settings.security") },
+    { id: "notifications", icon: Bell, label: t("settings.notifications") },
+  ];
+
+  const showProfileSection = activeTab === "profile";
+  const showSubscriptionSection =
+    activeTab === "profile" || activeTab === "subscription";
+  const showAddressSection = activeTab === "profile" || activeTab === "address";
+  const showMilkRatesSection = activeTab === "milkRates";
+  const showSecuritySection = activeTab === "security";
+  const showNotificationsSection = activeTab === "notifications";
+
+  const renderProfileCard = () => (
+    <Card className="border border-border/60 shadow-sm">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+        <div className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <User className="h-5 w-5 text-primary" />
+            {t("settings.profileInformation")}
+          </CardTitle>
+          <CardDescription>{t("settings.profileInformationDesc")}</CardDescription>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => setShowEditProfileDialog(true)}
+        >
+          <Pencil className="h-4 w-4" />
+          {t("settings.editProfile")}
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col sm:flex-row gap-6 items-start">
+          <div className="relative shrink-0">
+            <div className="h-24 w-24 rounded-full bg-green-50 border border-green-100 flex items-center justify-center overflow-hidden">
+              {userData?.profilePicture ? (
+                <img
+                  src={userData.profilePicture}
+                  alt={userData.name}
+                  crossOrigin="anonymous"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <User className="h-12 w-12 text-primary/70" />
+              )}
+              {isUploadingProfilePicture && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-xs font-medium">
+                  {t("settings.uploadingProfilePicture")}
+                </div>
+              )}
+            </div>
+            <input
+              ref={profilePictureInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleProfilePictureSelect}
+            />
+            <button
+              type="button"
+              className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background shadow-sm disabled:opacity-50"
+              aria-label={t("settings.uploadProfilePicture")}
+              disabled={isUploadingProfilePicture}
+              onClick={() => profilePictureInputRef.current?.click()}
+            >
+              <Camera className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="space-y-5 flex-1">
+            <div>
+              <p className="text-sm text-muted-foreground">{t("settings.name")}</p>
+              <p className="text-lg font-semibold">{userData?.name || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{t("settings.email")}</p>
+              <p className="text-base">{userData?.email || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{t("settings.phone")}</p>
+              <p className="text-base">{userData?.phone || "-"}</p>
+            </div>
+          </div>
+          <div className="space-y-5 flex-1">
+            <div>
+              <p className="text-sm text-muted-foreground">{t("settings.dairyCode")}</p>
+              <p className="text-lg font-semibold">{userData?.dairyCode || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{t("settings.referralCode")}</p>
+              <p className="text-base">{userData?.referralCode || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{t("settings.memberSince")}</p>
+              <p className="text-base">{formatMemberSince(
+                userData?.createdAt ?? profileSubscription?.startDate
+              )}</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderSubscriptionCard = () => (
+    <Card className="border border-border/60 shadow-sm">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+        <div className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Crown className="h-5 w-5 text-primary" />
+            {t("settings.activeSubscription")}
+          </CardTitle>
+          <CardDescription>{t("settings.activeSubscriptionDesc")}</CardDescription>
+        </div>
+        <Badge
+          className={cn(
+            "rounded-full px-3 py-1 font-medium border-0",
+            isSubscriptionActive
+              ? "bg-green-100 text-green-700 hover:bg-green-100"
+              : "bg-muted text-muted-foreground hover:bg-muted"
+          )}
+        >
+          {isSubscriptionActive ? t("navigation.active") : t("navigation.noActiveSubscription")}
+        </Badge>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div>
+            <p className="text-sm text-muted-foreground">{t("settings.plan")}</p>
+            <p className="font-semibold">
+              {profileSubscription?.plan?.name ||
+                (dairySubscription ? `Plan #${dairySubscription.planId}` : "-")}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">{t("settings.billingCycle")}</p>
+            <p className="font-medium">
+              {profileSubscription?.plan?.durationDays
+                ? getBillingCycleLabel(profileSubscription.plan.durationDays, t)
+                : "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">{t("settings.nextBillingDate")}</p>
+            <p className="font-medium">
+              {profileSubscription?.endDate
+                ? formatDisplayDateLong(profileSubscription.endDate, "-")
+                : dairySubscription?.endDate
+                  ? formatDisplayDateLong(dairySubscription.endDate, "-")
+                  : "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">{t("settings.amount")}</p>
+            <p className="font-semibold text-primary">
+              {profileSubscription?.planPrice
+                ? `₹${Number(profileSubscription.planPrice).toFixed(2)}`
+                : "-"}
+            </p>
+          </div>
+        </div>
+        <div
+          className={cn(
+            "flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg px-4 py-3",
+            isSubscriptionActive ? "bg-green-50" : "bg-muted/50"
+          )}
+        >
+          <div className="flex items-center gap-2 text-sm">
+            {isSubscriptionActive ? (
+              <>
+                <Check className="h-4 w-4 text-green-600 shrink-0" />
+                <span className="text-green-800">{t("settings.subscriptionActiveMessage")}</span>
+              </>
+            ) : (
+              <span className="text-muted-foreground">{t("settings.subscriptionInactiveMessage")}</span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 bg-background shrink-0"
+            onClick={() => navigate("/subscription-plans")}
+          >
+            <SettingsGear className="h-4 w-4" />
+            {isSubscriptionActive ? t("settings.manageSubscription") : t("settings.viewPlans")}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderAddressCard = () => (
+    <Card className="border border-border/60 shadow-sm">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+        <div className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <MapPin className="h-5 w-5 text-primary" />
+            {t("settings.addressDetails")}
+          </CardTitle>
+          <CardDescription>{t("settings.addressDetailsDesc")}</CardDescription>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => setShowEditAddressDialog(true)}
+        >
+          <Pencil className="h-4 w-4" />
+          {t("settings.editAddress")}
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div className="relative rounded-lg border border-border/60 p-5 bg-muted/20">
+          <Badge className="absolute top-4 right-4 rounded-full bg-green-100 text-green-700 border-0 hover:bg-green-100 gap-1">
+            <Check className="h-3 w-3" />
+            {t("settings.default")}
+          </Badge>
+          <div className="space-y-3 pr-24">
+            <p className="font-semibold">{t("settings.defaultAddress")}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {formatAddressLine(userData) || t("settings.noAddressSaved")}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderMilkRateCard = () => (
+    <Card className="border border-border/60 shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Milk className="h-5 w-5 text-primary" />
+          {t("settings.milkRateSettings")}
+        </CardTitle>
+        <CardDescription>{t("settings.configureMilkPricing")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoadingMilkRates ? (
+          <div className="text-center py-4">
+            {t("settings.loadingMilkRateSettings")}
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="fatRate">{t("settings.fatRate")}</Label>
+              <Input
+                id="fatRate"
+                type="number"
+                step="0.01"
+                min="0"
+                value={milkRateSettings.fatRate}
+                onChange={(e) =>
+                  setMilkRateSettings((prev) => ({
+                    ...prev,
+                    fatRate: e.target.value,
+                  }))
+                }
+                placeholder="2.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("settings.fatRateDescription")}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="snfRate">{t("settings.snfRate")}</Label>
+              <Input
+                id="snfRate"
+                type="number"
+                step="0.01"
+                min="0"
+                value={milkRateSettings.snfRate}
+                onChange={(e) =>
+                  setMilkRateSettings((prev) => ({
+                    ...prev,
+                    snfRate: e.target.value,
+                  }))
+                }
+                placeholder="1.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("settings.snfRateDescription")}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="formulaType">{t("settings.formulaType")}</Label>
+              <Select
+                value={milkRateSettings.formulaType}
+                onValueChange={(value: "fatOnly" | "fatSnf") =>
+                  setMilkRateSettings((prev) => ({
+                    ...prev,
+                    formulaType: value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fatOnly">{t("settings.fatOnly")}</SelectItem>
+                  <SelectItem value="fatSnf">{t("settings.fatSnf")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleSaveMilkRates}
+              disabled={isSavingMilkRates}
+              className="w-full sm:w-auto"
+            >
+              {isSavingMilkRates ? t("settings.saving") : t("settings.saveMilkRateSettings")}
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const renderChangePasswordForm = (idPrefix = "security") => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-currentPassword`}>{t("settings.currentPassword")}</Label>
+        <div className="relative">
+          <Input
+            id={`${idPrefix}-currentPassword`}
+            type={showCurrentPassword ? "text" : "password"}
+            value={passwordData.currentPassword}
+            onChange={(e) =>
+              setPasswordData((prev) => ({
+                ...prev,
+                currentPassword: e.target.value,
+              }))
+            }
+            placeholder={t("settings.currentPasswordPlaceholder")}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+          >
+            {showCurrentPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-newPassword`}>{t("settings.newPassword")}</Label>
+        <div className="relative">
+          <Input
+            id={`${idPrefix}-newPassword`}
+            type={showNewPassword ? "text" : "password"}
+            value={passwordData.newPassword}
+            onChange={(e) =>
+              setPasswordData((prev) => ({
+                ...prev,
+                newPassword: e.target.value,
+              }))
+            }
+            placeholder={t("settings.newPasswordPlaceholder")}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+            onClick={() => setShowNewPassword(!showNewPassword)}
+          >
+            {showNewPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {t("settings.passwordMinLength")}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-confirmPassword`}>{t("settings.confirmPassword")}</Label>
+        <div className="relative">
+          <Input
+            id={`${idPrefix}-confirmPassword`}
+            type={showConfirmPassword ? "text" : "password"}
+            value={passwordData.confirmPassword}
+            onChange={(e) =>
+              setPasswordData((prev) => ({
+                ...prev,
+                confirmPassword: e.target.value,
+              }))
+            }
+            placeholder={t("settings.confirmPasswordPlaceholder")}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+          >
+            {showConfirmPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {passwordData.newPassword && (
+        <div className="space-y-2">
+          <Label className="text-sm">{t("settings.passwordStrength")}</Label>
+          <div className="flex space-x-1">
+            <div
+              className={cn(
+                "h-2 w-full rounded",
+                passwordData.newPassword.length >= 6 ? "bg-green-500" : "bg-gray-200"
+              )}
+            />
+            <div
+              className={cn(
+                "h-2 w-full rounded",
+                passwordData.newPassword.length >= 8 &&
+                  /[A-Z]/.test(passwordData.newPassword)
+                  ? "bg-green-500"
+                  : "bg-gray-200"
+              )}
+            />
+            <div
+              className={cn(
+                "h-2 w-full rounded",
+                passwordData.newPassword.length >= 8 &&
+                  /[0-9]/.test(passwordData.newPassword) &&
+                  /[!@#$%^&*]/.test(passwordData.newPassword)
+                  ? "bg-green-500"
+                  : "bg-gray-200"
+              )}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {passwordData.newPassword.length < 6
+              ? t("settings.weak")
+              : passwordData.newPassword.length >= 8 &&
+                  /[A-Z]/.test(passwordData.newPassword) &&
+                  /[0-9]/.test(passwordData.newPassword) &&
+                  /[!@#$%^&*]/.test(passwordData.newPassword)
+                ? t("settings.veryStrong")
+                : passwordData.newPassword.length >= 8 &&
+                    /[A-Z]/.test(passwordData.newPassword)
+                  ? t("settings.strong")
+                  : t("settings.medium")}
+          </p>
+        </div>
+      )}
+
+      <Button
+        onClick={handlePasswordChange}
+        disabled={
+          !passwordData.currentPassword ||
+          !passwordData.newPassword ||
+          !passwordData.confirmPassword
+        }
+        className="w-full sm:w-auto"
+      >
+        {t("settings.changePassword")}
+      </Button>
+    </div>
+  );
+
+  const renderSecurityCard = () => (
+    <Card className="border border-border/60 shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-primary" />
+          {t("settings.securitySettings")}
+        </CardTitle>
+        <CardDescription>{t("settings.manageSecuritySettings")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="rounded-lg border border-border/60 p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+              <Key className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold">{t("settings.changePassword")}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("settings.changePasswordDesc")}
+              </p>
+            </div>
+          </div>
+          {renderChangePasswordForm("dairy-security")}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderNotificationsCard = () => (
+    <Card className="border border-border/60 shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-primary" />
+          {t("settings.notifications")}
+        </CardTitle>
+        <CardDescription>{t("settings.preferences")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-medium">{t("settings.notifications")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("settings.manageProfilePreferences")}
+            </p>
+          </div>
+          <Switch defaultChecked />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="p-6">
+      {isDairyUser ? (
+        <div className="flex flex-col lg:flex-row gap-6">
+          <aside className="lg:w-64 shrink-0 space-y-4">
+            <div>
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                {t("settings.myAccount")}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("settings.manageProfilePreferences")}
+              </p>
+            </div>
+            <nav className="space-y-1">
+              {accountNavItems.map(({ id, icon: Icon, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    activeTab === id
+                      ? "bg-green-50 text-primary"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <div className="rounded-lg bg-green-50 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-primary font-medium">
+                <CircleHelp className="h-4 w-4" />
+                {t("settings.needHelp")}
+              </div>
+              <p className="text-sm text-muted-foreground">{t("settings.needHelpDesc")}</p>
+              <button
+                type="button"
+                className="text-sm font-medium text-primary flex items-center gap-1 hover:underline"
+              >
+                {t("settings.contactSupport")}
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </aside>
+
+          <div className="flex-1 space-y-6 min-w-0">
+            {isLoadingProfile ? (
+              <div className="flex items-center justify-center py-16 text-muted-foreground">
+                {t("settings.loadingProfile")}
+              </div>
+            ) : (
+              <>
+                {showProfileSection && renderProfileCard()}
+                {showSubscriptionSection && renderSubscriptionCard()}
+                {showAddressSection && renderAddressCard()}
+                {showSecuritySection && renderSecurityCard()}
+                {showNotificationsSection && renderNotificationsCard()}
+                {showMilkRatesSection && renderMilkRateCard()}
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{t("settings.title")}</h1>
+            <p className="text-muted-foreground">{t("settings.subtitle")}</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -391,6 +1210,7 @@ export default function Settings() {
             <CardDescription>{t("settings.manageAccountSettings")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+ 
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("settings.name")}</label>
               <input
@@ -413,130 +1233,9 @@ export default function Settings() {
                 className="w-full p-2 border border-border rounded-md bg-background"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t("settings.address")}</label>
-              <textarea
-                value={userData?.address || ""}
-                onChange={(e) =>
-                  setUserData({ ...userData, address: e.target.value })
-                }
-                placeholder={t("settings.addressPlaceholder")}
-                rows={3}
-                className="w-full p-2 border border-border rounded-md bg-background resize-none"
-              />
-            </div>
             <Button onClick={handleUpdateProfile}>{t("settings.updateProfile")}</Button>
           </CardContent>
         </Card>
-        {user?.roleId === UserRole.DAIRY && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Milk className="h-5 w-5 text-primary" />
-                {t("settings.milkRateSettings")}
-              </CardTitle>
-              <CardDescription>
-                {t("settings.configureMilkPricing")}
-              </CardDescription>
-            </CardHeader>{" "}
-            <CardContent className="space-y-4">
-              {isLoadingMilkRates ? (
-                <div className="text-center py-4">
-                  {t("settings.loadingMilkRateSettings")}
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="fatRate">{t("settings.fatRate")} </Label>
-                    <Input
-                      id="fatRate"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={milkRateSettings.fatRate}
-                      onChange={(e) =>
-                        setMilkRateSettings((prev) => ({
-                          ...prev,
-                          fatRate: e.target.value,
-                        }))
-                      }
-                      placeholder="2.00"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {t("settings.fatRateDescription")}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="snfRate">{t("settings.snfRate")} </Label>
-                    <Input
-                      id="snfRate"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={milkRateSettings.snfRate}
-                      onChange={(e) =>
-                        setMilkRateSettings((prev) => ({
-                          ...prev,
-                          snfRate: e.target.value,
-                        }))
-                      }
-                      placeholder="1.00"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {t("settings.snfRateDescription")}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="formulaType">{t("settings.formulaType")}</Label>
-                    <Select
-                      value={milkRateSettings.formulaType}
-                      onValueChange={(value: "fatOnly" | "fatSnf") =>
-                        setMilkRateSettings((prev) => ({
-                          ...prev,
-                          formulaType: value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fatOnly">
-                          {t("settings.fatOnly")}{" "}
-                          <small className="text-xs text-muted-foreground">
-                            {t("settings.fatOnlyDescription")}
-                          </small>
-                        </SelectItem>
-                        <SelectItem value="fatSnf">
-                          {t("settings.fatSnf")}{" "}
-                          <small className="text-xs text-muted-foreground">
-                            {t("settings.fatSnfDescription")}
-                          </small>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {milkRateSettings.formulaType === "fatOnly" &&
-                        t("settings.fatOnlyFormulaDescription")}
-                      {milkRateSettings.formulaType === "fatSnf" &&
-                        t("settings.fatSnfFormulaDescription")}
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={handleSaveMilkRates}
-                    disabled={isSavingMilkRates}
-                    className="w-full"
-                  >
-                    {isSavingMilkRates ? t("settings.saving") : t("settings.saveMilkRateSettings")}
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -545,266 +1244,134 @@ export default function Settings() {
             </CardTitle>
             <CardDescription>{t("settings.manageSecuritySettings")}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setShowPasswordDialog(true)}
-            >
-              {t("settings.changePassword")}
-            </Button>
-            {/* <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setShowLoginHistoryDialog(true)}
-            >
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4" />
-                {t("settings.loginHistory")}
+          <CardContent className="space-y-6">
+            <div className="rounded-lg border border-border/60 p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                  <Key className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">{t("settings.changePassword")}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t("settings.changePasswordDesc")}
+                  </p>
+                </div>
               </div>
-            </Button> */}
+              {renderChangePasswordForm("admin-security")}
+            </div>
           </CardContent>
         </Card>
+          </div>
+        </div>
+      )}
 
-        {/* <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
-              Notifications
-            </CardTitle>
-            <CardDescription>
-              Configure notification preferences
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Low Stock Alerts</p>
-                <p className="text-sm text-muted-foreground">
-                  Get notified when products are running low
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Payment Reminders</p>
-                <p className="text-sm text-muted-foreground">
-                  Remind customers about pending payments
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Expiry Alerts</p>
-                <p className="text-sm text-muted-foreground">
-                  Alert when products are near expiry
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-          </CardContent>
-        </Card> */}
-
-        {/* <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-primary" />
-              System Settings
-            </CardTitle>
-            <CardDescription>Configure system preferences</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Default Currency</label>
-              <select className="w-full p-2 border border-border rounded-md bg-background">
-                <option>INR (₹)</option>
-                <option>USD ($)</option>
-                <option>EUR (€)</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Date Format</label>
-              <select className="w-full p-2 border border-border rounded-md bg-background">
-                <option>DD/MM/YYYY</option>
-                <option>MM/DD/YYYY</option>
-                <option>YYYY-MM-DD</option>
-              </select>
-            </div>
-            <Button>Save Settings</Button>
-          </CardContent>
-        </Card> */}
-      </div>
-
-      {/* Change Password Dialog */}
-      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+      {/* Edit Profile Dialog */}
+      <Dialog open={showEditProfileDialog} onOpenChange={setShowEditProfileDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("settings.changePassword")}</DialogTitle>
+            <DialogTitle>{t("settings.editProfile")}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">{t("settings.currentPassword")}</Label>
-                <div className="relative">
-                  <Input
-                    id="currentPassword"
-                    type={showCurrentPassword ? "text" : "password"}
-                    value={passwordData.currentPassword}
-                    onChange={(e) =>
-                      setPasswordData((prev) => ({
-                        ...prev,
-                        currentPassword: e.target.value,
-                      }))
-                    }
-                    placeholder={t("settings.currentPasswordPlaceholder")}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  >
-                    {showCurrentPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">{t("settings.newPassword")}</Label>
-                <div className="relative">
-                  <Input
-                    id="newPassword"
-                    type={showNewPassword ? "text" : "password"}
-                    value={passwordData.newPassword}
-                    onChange={(e) =>
-                      setPasswordData((prev) => ({
-                        ...prev,
-                        newPassword: e.target.value,
-                      }))
-                    }
-                    placeholder={t("settings.newPasswordPlaceholder")}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                  >
-                    {showNewPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t("settings.passwordMinLength")}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">{t("settings.confirmPassword")}</Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={passwordData.confirmPassword}
-                    onChange={(e) =>
-                      setPasswordData((prev) => ({
-                        ...prev,
-                        confirmPassword: e.target.value,
-                      }))
-                    }
-                    placeholder={t("settings.confirmPasswordPlaceholder")}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editName">{t("settings.name")}</Label>
+              <Input
+                id="editName"
+                value={userData?.name || ""}
+                onChange={(e) =>
+                  setUserData({ ...userData, name: e.target.value })
+                }
+              />
             </div>
-
-            {/* Password Strength Indicator */}
-            {passwordData.newPassword && (
-              <div className="space-y-2">
-                <Label className="text-sm">{t("settings.passwordStrength")}</Label>
-                <div className="flex space-x-1">
-                  <div
-                    className={`h-2 w-full rounded ${
-                      passwordData.newPassword.length >= 6
-                        ? "bg-green-500"
-                        : "bg-gray-200"
-                    }`}
-                  />
-                  <div
-                    className={`h-2 w-full rounded ${
-                      passwordData.newPassword.length >= 8 &&
-                      /[A-Z]/.test(passwordData.newPassword)
-                        ? "bg-green-500"
-                        : "bg-gray-200"
-                    }`}
-                  />
-                  <div
-                    className={`h-2 w-full rounded ${
-                      passwordData.newPassword.length >= 8 &&
-                      /[0-9]/.test(passwordData.newPassword) &&
-                      /[!@#$%^&*]/.test(passwordData.newPassword)
-                        ? "bg-green-500"
-                        : "bg-gray-200"
-                    }`}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {passwordData.newPassword.length < 6
-                    ? t("settings.weak")
-                    : passwordData.newPassword.length >= 8 &&
-                      /[A-Z]/.test(passwordData.newPassword) &&
-                      /[0-9]/.test(passwordData.newPassword) &&
-                      /[!@#$%^&*]/.test(passwordData.newPassword)
-                    ? t("settings.veryStrong")
-                    : passwordData.newPassword.length >= 8 &&
-                      /[A-Z]/.test(passwordData.newPassword)
-                    ? t("settings.strong")
-                    : t("settings.medium")}
-                </p>
-              </div>
-            )}
-
+            <div className="space-y-2">
+              <Label htmlFor="editEmail">{t("settings.email")}</Label>
+              <Input
+                id="editEmail"
+                type="email"
+                value={userData?.email || ""}
+                onChange={(e) =>
+                  setUserData({ ...userData, email: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editPhone">{t("settings.phone")}</Label>
+              <Input
+                id="editPhone"
+                type="phone"
+                value={userData?.phone || ""}
+                onChange={(e) =>
+                  setUserData({ ...userData, phone: e.target.value })
+                }
+              />
+            </div>
             <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowPasswordDialog(false)}
-              >
+              <Button variant="outline" onClick={() => setShowEditProfileDialog(false)}>
                 {t("settings.cancel")}
               </Button>
-              <Button
-                onClick={handlePasswordChange}
-                disabled={
-                  !passwordData.currentPassword ||
-                  !passwordData.newPassword ||
-                  !passwordData.confirmPassword
+              <Button onClick={handleUpdateProfile}>{t("settings.updateProfile")}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Address Dialog */}
+      <Dialog open={showEditAddressDialog} onOpenChange={setShowEditAddressDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("settings.editAddress")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editAddress">{t("settings.address")}</Label>
+              <textarea
+                id="editAddress"
+                value={userData?.address || ""}
+                onChange={(e) =>
+                  setUserData({ ...userData, address: e.target.value })
                 }
-              >
-                {t("settings.changePassword")}
+                placeholder={t("settings.addressPlaceholder")}
+                rows={4}
+                className="w-full p-2 border border-border rounded-md bg-background resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editCity">{t("settings.city")}</Label>
+              <Input
+                id="editCity"
+                value={userData?.city || ""}
+                onChange={(e) =>
+                  setUserData({ ...userData, city: e.target.value })
+                }
+                placeholder={t("settings.cityPlaceholder")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editState">{t("settings.state")}</Label>
+              <Input
+                id="editState"
+                value={userData?.state || ""}
+                onChange={(e) =>
+                  setUserData({ ...userData, state: e.target.value })
+                }
+                placeholder={t("settings.statePlaceholder")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editPincode">{t("settings.pincode")}</Label>
+              <Input
+                id="editPincode"
+                value={userData?.pincode || ""}
+                onChange={(e) =>
+                  setUserData({ ...userData, pincode: e.target.value })
+                }
+                placeholder={t("settings.pincodePlaceholder")}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowEditAddressDialog(false)}>
+                {t("settings.cancel")}
               </Button>
+              <Button onClick={handleUpdateAddress}>{t("common.save")}</Button>
             </div>
           </div>
         </DialogContent>
