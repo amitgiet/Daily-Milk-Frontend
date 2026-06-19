@@ -42,6 +42,7 @@ import { useParams } from "react-router-dom";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { DateInput } from "@/components/ui/date-input";
 import { Milk } from "lucide-react";
+import { SearchableFarmerSelect } from "@/components/farmers/SearchableFarmerSelect";
 
 
 
@@ -504,27 +505,14 @@ const MilkCollection: React.FC = () => {
                   <Label htmlFor="farmer">
                     {t("milkCollection.farmerName")}
                   </Label>
-                  <Select
+                  <SearchableFarmerSelect
+                    id="farmer"
+                    farmers={farmers}
                     value={selectedFarmer}
                     onValueChange={setSelectedFarmer}
                     disabled={farmersLoading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={t("milkCollection.selectFarmer")}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {farmers.map((farmer) => (
-                        <SelectItem
-                          key={farmer.id}
-                          value={farmer.id.toString()}
-                        >
-                          {farmer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder={t("milkCollection.selectFarmer")}
+                  />
                 </div>
 
                 <div className="min-w-[110px] flex-1 space-y-2">
@@ -667,7 +655,7 @@ const MilkCollection: React.FC = () => {
                 <SelectTrigger className="w-46">
                   <SelectValue placeholder={t("milkCollection.selectShift")} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent> 
                   <SelectItem value="morning">{t("milkCollection.morning")}</SelectItem>
                   <SelectItem value="evening">{t("milkCollection.evening")}</SelectItem>
                 </SelectContent>

@@ -22,7 +22,7 @@
     "noActiveSubscription": "No active subscription",
     "milkReports": "Milk Reports",
     "diarydispatch": "Milk Dispatch",
-    "paymentManagement": "Payment Management",
+    "paymentManagement": "Payment History",
     "dairySubscriptions": "Dairy Subscriptions",
     "purchasedSubscriptions": "History"
   },
@@ -67,7 +67,19 @@
     "warning": "Warning",
     "info": "Information",
     "saveAndPrint": "Save & Print",
-    "print": "Print"
+    "print": "Print",
+    "online": "Online",
+    "offline": "Offline",
+    "backOnline": "You are back online",
+    "noInternet": "No internet connection"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "unreadCount": "{{count}} unread",
+    "noNotifications": "No notifications yet",
+    "noNotificationsDescription": "You're all caught up!",
+    "viewSettings": "Notification settings"
   },
   "auth": {
     "login": "Login",
@@ -174,15 +186,20 @@
     "weeklyMilkCollectionDescription": "Milk collected over the last 7 days",
     "monthlyMilkCollection": "Milk Progress Report",
     "monthlyMilkCollectionDescription": "Milk collection progress over the previous 12 months",
-    "farmerCollectionChart": "Farmer Collection Breakdown",
+    "farmerCollectionChart": "Farmer Milk Collection Breakdown",
     "farmerCollectionChartDescription": "Morning and evening collection by farmer today",
     "shiftDistribution": "Morning vs Evening",
     "shiftDistributionDescription": "Today's collection split by shift",
+    "today": "Today",
+    "thisMonth": "This Month",
+    "year": "Year",
     "liters": "Liters",
+    "amount": "Amount",
     "noChartData": "No data available for chart",
     "revenue": "Revenue",
     "profit": "Profit",
     "noMilkCollectionToday": "No milk collection for today",
+    "noMonthlyFarmerCollection": "No farmer milk collection this month",
     "noLowStockItems": "No low stock items",
     "noRecentOrders": "No recent orders",
     "myDairies": "My Dairies",
@@ -290,6 +307,8 @@
     "noHistoryDescription": "This farmer hasn't sold any milk yet",
     "paymentStatus": "Payment Status",
     "paymentDate": "Payment Date",
+    "paymentHistory": "Payment History",
+    "noPaymentHistory": "No payment history found for this period",
     "paid": "Paid",
     "pending": "Pending"
   },
@@ -300,6 +319,7 @@
     "farmerName": "Farmer Name",
     "name": "Name",
     "phone": "Phone",
+    "memberSince": "Member Since",
     "village": "Village",
     "password": "Password",
     "newPassword": "New Password",
@@ -599,7 +619,7 @@
     "updateEntryButton": "Update Entry",
     "cancelButton": "Cancel",
     "saving": "Saving...",
-    "dailyList": "Daily Collection List",
+    "dailyList": "Today's Milk Collection List",
     "todaysCollection": "Today's Milk Collection",
     "entriesCollected": "entries collected today",
     "noEntries": "No milk entries for today",
@@ -629,7 +649,8 @@
     "myCollectionList": "My Collection List",
     "noMyEntries": "No milk entries found for you",
     "receipt": "Milk Collection Receipt",
-    "selectedDairy": "Selected Dairy"
+    "selectedDairy": "Selected Dairy",
+    "allShifts": "All Shifts"
   },
   "dairyRates": {
     "title": "Dairy Rates Management",
@@ -846,6 +867,14 @@
     "paymentStatementDownloadSuccess": "Payment statement downloaded successfully",
     "paymentStatementDownloadError": "Failed to download payment statement",
     "pdfDownloadSuccess": "Payment report PDF downloaded successfully",
-    "pdfDownloadError": "Failed to download payment report PDF"
+    "pdfDownloadError": "Failed to download payment report PDF",
+    "farmerLabel": "Farmer",
+    "unpaidMilkList": "Unpaid Milk Entries",
+    "loadingUnpaidMilk": "Loading unpaid milk entries...",
+    "noUnpaidMilk": "No unpaid milk entries found",
+    "selectAllUnpaid": "Select all unpaid entries",
+    "selectEntry": "Select milk entry",
+    "selectedCount": "{{count}} selected",
+    "paymentAddError": "Failed to add payment"
   }
 }

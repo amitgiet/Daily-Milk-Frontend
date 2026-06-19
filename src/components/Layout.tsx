@@ -8,7 +8,6 @@ import {
   ShoppingCart,
   BarChart3,
   Settings,
-  Bell,
   User,
   Menu,
   X,
@@ -33,6 +32,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "./LanguageSwitcher";
+import { NotificationPopup } from "./NotificationPopup";
+import {
+  NetworkStatusBadge,
+  NetworkStatusNotifier,
+} from "./NetworkStatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   canAccessRoute,
@@ -264,11 +268,15 @@ export default function Layout() {
     navigate("/login");
   };
 
-  const userEmail =
+  const userDisplayName =
     user?.name || user?.email || user?.phone || "admin@Dairy Book.com";
+  const userHeaderLabel = user?.dairyCode
+    ? `${userDisplayName} · ${user.dairyCode}`
+    : userDisplayName;
 
   return (
     <div className="min-h-screen bg-background">
+      <NetworkStatusNotifier />
       {/* Mobile sidebar */}
       <div
         className={cn(
@@ -384,14 +392,11 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center space-x-4">
+              <NetworkStatusBadge className="hidden sm:inline-flex" />
+
               <LanguageSwitcher />
 
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center p-0">
-                  3
-                </Badge>
-              </Button>
+              <NotificationPopup />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -402,7 +407,7 @@ export default function Layout() {
                   >
                     <User className="h-5 w-5" />
                     <span className="hidden sm:block text-sm text-muted-foreground">
-                      {userEmail.split("@")[0]}
+                      {userHeaderLabel}
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
@@ -412,7 +417,12 @@ export default function Layout() {
                     <p className="text-sm font-medium text-foreground">
                       {t("navigation.signedInAs")}
                     </p>
-                    <p className="text-sm text-muted-foreground">{userEmail}</p>
+                    <p className="text-sm text-muted-foreground">{userDisplayName}</p>
+                    {user?.dairyCode ? (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("settings.dairyCode")}: {user.dairyCode}
+                      </p>
+                    ) : null}
                     <p className="text-xs text-muted-foreground mt-1">
                       {t("navigation.role")}:{" "}
                       {(() => {
@@ -439,6 +449,9 @@ export default function Layout() {
                         {t("navigation.noActiveSubscription")}
                       </p>
                     )}
+                    <div className="mt-2">
+                      <NetworkStatusBadge />
+                    </div>
                   </div>
                   <DropdownMenuSeparator />
                   {canAccessRoute(userRole, "/settings") && (

@@ -337,10 +337,10 @@ const PaymentManagement = () => {
             Manage farmer payments and track payment history
           </p>
         </div>
-        <Button onClick={openAddForm} className="flex items-center gap-2">
+       {/*  <Button onClick={openAddForm} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           {t("payments.addPayment")}
-        </Button>
+        </Button> */}
       </div>
 
       {/* Filters */}
@@ -444,8 +444,8 @@ const PaymentManagement = () => {
                     <TableHead>{t("payments.type")}</TableHead>
                     <TableHead>{t("payments.paymentMethod")}</TableHead>
                     <TableHead>{t("payments.paymentType")}</TableHead>
-                    <TableHead>{t("payments.note")}</TableHead>
-                    <TableHead>{t("payments.actions")}</TableHead>
+                    <TableHead className="text-right">{t("payments.note")}</TableHead>
+                    {/* <TableHead>{t("payments.actions")}</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -469,8 +469,8 @@ const PaymentManagement = () => {
                       <TableCell>
                         <Badge variant="default">{formatPaymentField(payment.paymentType)}</Badge>
                       </TableCell>
-                      <TableCell>{payment.note || "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-right">{payment.note || "-"}</TableCell>
+                      {/* <TableCell>
                         {isPaymentEditable(payment.createdAt) ? (
                           <div className="flex items-center gap-2">
                             <Button
@@ -491,7 +491,7 @@ const PaymentManagement = () => {
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
-                      </TableCell>
+                      </TableCell> */}
                     </TableRow>
                   ))}
                 </TableBody>

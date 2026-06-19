@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard, Filter, X, User } from "lucide-react";
+import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard, Filter, X, User, History } from "lucide-react";
 import { cn, getProfilePictureUrl } from "@/lib/utils";
 import {
   Dialog,
@@ -57,20 +57,9 @@ import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { ApiResponse } from "@/types/auth";
 import { formatDisplayDate } from "@/lib/dateFormat";
-import { DateInput } from "@/components/ui/date-input";
 import { toast } from "sonner";
-
-// Interface for milk purchase history
-interface MilkPurchaseHistory {
-  id: string;
-  date: string;
-  fatPercentage: number;
-  quantity: number;
-  ratePerLiter: number;
-  totalAmount: number;
-  paymentStatus: "paid" | "pending";
-  paymentDate?: string;
-}
+import { PayFarmerDialog } from "@/components/payments/PayFarmerDialog";
+import { FarmerPaymentHistoryDialog } from "@/components/payments/FarmerPaymentHistoryDialog";
 
 // Interface for farmer based on API response
 interface Farmer {
@@ -116,18 +105,6 @@ const farmerSchema = z.object({
 
 type FarmerFormData = z.infer<typeof farmerSchema>;
 
-const PAYMENT_METHODS = ["cash", "upi", "bank"] as const;
-
-// Payment form schema
-const paymentSchema = z.object({
-  amount: z.number().min(1, "Amount must be greater than 0"),
-  paidAt: z.string().min(1, "Payment date is required"),
-  paymentMethod: z.enum(PAYMENT_METHODS),
-  note: z.string().optional(),
-});
-
-type PaymentFormData = z.infer<typeof paymentSchema>;
-
 export default function Customers() {
   const { t } = useTranslation();
   const [farmers, setFarmers] = useState<Farmer[]>([]);
@@ -135,9 +112,10 @@ export default function Customers() {
   const [editingFarmer, setEditingFarmer] = useState<Farmer | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedFarmerForPayment, setSelectedFarmerForPayment] = useState<Farmer | null>(null);
+  const [showPaymentHistoryDialog, setShowPaymentHistoryDialog] = useState(false);
+  const [selectedFarmerForHistory, setSelectedFarmerForHistory] = useState<Farmer | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
 
@@ -152,23 +130,6 @@ export default function Customers() {
     defaultValues: {
       name: "",
       phone: "",
-    },
-  });
-
-  const {
-    register: registerPayment,
-    handleSubmit: handleSubmitPayment,
-    reset: resetPayment,
-    setValue: setPaymentValue,
-    watch: watchPayment,
-    formState: { errors: paymentErrors },
-  } = useForm<PaymentFormData>({
-    resolver: zodResolver(paymentSchema),
-    defaultValues: {
-      amount: 0,
-      paidAt: new Date().toISOString().split('T')[0],
-      paymentMethod: "cash",
-      note: "",
     },
   });
 
@@ -276,50 +237,14 @@ export default function Customers() {
     reset();
   };
 
-  // Handle payment
   const handlePayment = (farmer: Farmer) => {
     setSelectedFarmerForPayment(farmer);
-    setPaymentValue("amount", 0);
-    setPaymentValue("paidAt", new Date().toISOString().split('T')[0]);
-    setPaymentValue("paymentMethod", "cash");
-    setPaymentValue("note", "");
     setShowPaymentDialog(true);
   };
 
-  // Handle payment submission
-  const handleSubmitPaymentForm = async (data: PaymentFormData) => {
-    if (!selectedFarmerForPayment) return;
-    
-    setPaymentSubmitting(true);
-    try {
-      const paymentData = {
-        farmerId: selectedFarmerForPayment.id,
-        amount: data.amount,
-        paidAt: data.paidAt,
-        paymentMethod: data.paymentMethod,
-        note: data.note || "",
-      };
-
-      const response = await apiCall(allRoutes.dairy.addFarmerPayments, "post", paymentData);
-      if (response.success) {
-        toast.success(t("payments.paymentAdded"));
-        setShowPaymentDialog(false);
-        setSelectedFarmerForPayment(null);
-        resetPayment();
-      }
-    } catch (error) {
-      console.error("Failed to add payment:", error);
-      toast.error("Failed to add payment");
-    } finally {
-      setPaymentSubmitting(false);
-    }
-  };
-
-  // Reset payment form when dialog closes
-  const handleClosePaymentDialog = () => {
-    setShowPaymentDialog(false);
-    setSelectedFarmerForPayment(null);
-    resetPayment();
+  const handleViewPaymentHistory = (farmer: Farmer) => {
+    setSelectedFarmerForHistory(farmer);
+    setShowPaymentHistoryDialog(true);
   };
 
   const applyFilters = () => {
@@ -499,120 +424,24 @@ export default function Customers() {
         </DialogContent>
       </Dialog>
 
-      {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              {t("payments.payFarmer")}
-            </DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={handleSubmitPayment(handleSubmitPaymentForm)}
-            className="space-y-4"
-          >
-            {selectedFarmerForPayment && (
-              <div className="bg-muted p-3 rounded-lg">
-                <p className="text-sm text-muted-foreground">Farmer:</p>
-                <p className="font-medium">{selectedFarmerForPayment.name}</p>
-                <p className="text-sm text-muted-foreground">{selectedFarmerForPayment.phone}</p>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="amount">{t("payments.amount")} *</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                {...registerPayment("amount", { valueAsNumber: true })}
-                placeholder={t("payments.amountPlaceholder")}
-              />
-              {paymentErrors.amount && (
-                <p className="text-sm text-destructive">
-                  {paymentErrors.amount.message}
-                </p>
-              )}
-            </div>
+      <PayFarmerDialog
+        open={showPaymentDialog}
+        onOpenChange={(open) => {
+          setShowPaymentDialog(open);
+          if (!open) setSelectedFarmerForPayment(null);
+        }}
+        farmer={selectedFarmerForPayment}
+        onPaymentSuccess={fetchFarmers}
+      />
 
-            <div className="space-y-2">
-              <Label htmlFor="paidAt">{t("payments.paidAt")} *</Label>
-              <DateInput
-                id="paidAt"
-                value={watchPayment("paidAt")}
-                onChange={(value) =>
-                  setPaymentValue("paidAt", value, { shouldValidate: true })
-                }
-              />
-              {paymentErrors.paidAt && (
-                <p className="text-sm text-destructive">
-                  {paymentErrors.paidAt.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="paymentMethod">{t("payments.paymentMethod")} *</Label>
-              <Select
-                value={watchPayment("paymentMethod")}
-                onValueChange={(value) =>
-                  setPaymentValue(
-                    "paymentMethod",
-                    value as PaymentFormData["paymentMethod"],
-                    { shouldValidate: true },
-                  )
-                }
-              >
-                <SelectTrigger id="paymentMethod">
-                  <SelectValue placeholder={t("payments.selectPaymentMethod")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_METHODS.map((method) => (
-                    <SelectItem key={method} value={method}>
-                      {t(`payments.paymentMethods.${method}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {paymentErrors.paymentMethod && (
-                <p className="text-sm text-destructive">
-                  {paymentErrors.paymentMethod.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="note">{t("payments.note")}</Label>
-              <Input
-                id="note"
-                {...registerPayment("note")}
-                placeholder={t("payments.notePlaceholder")}
-              />
-              {paymentErrors.note && (
-                <p className="text-sm text-destructive">
-                  {paymentErrors.note.message}
-                </p>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClosePaymentDialog}
-              >
-                {t("payments.cancel")}
-              </Button>
-              <Button type="submit" disabled={paymentSubmitting}>
-                {paymentSubmitting
-                  ? t("payments.saving")
-                  : t("payments.addPayment")}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <FarmerPaymentHistoryDialog
+        open={showPaymentHistoryDialog}
+        onOpenChange={(open) => {
+          setShowPaymentHistoryDialog(open);
+          if (!open) setSelectedFarmerForHistory(null);
+        }}
+        farmer={selectedFarmerForHistory}
+      />
 
       {/* Farmers List */}
       {loading ? (
@@ -663,6 +492,11 @@ export default function Customers() {
                           >
                             FRM-{String(farmer.id).padStart(4, "0")}
                           </Badge>
+                          {farmer.createdAt && (
+                    <p className="text-xs text-muted-foreground text-center pt-0.5">
+                      {t("farmers.memberSince")}: {formatDisplayDate(farmer.createdAt)}
+                    </p>
+                  )}
                         </div>
 
                         <div className="flex shrink-0 gap-0.5 opacity-90 group-hover:opacity-100">
@@ -679,12 +513,24 @@ export default function Customers() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary"
-                            onClick={() => handlePayment(farmer)}
-                            title={t("payments.payFarmer")}
+                            onClick={() => handleViewPaymentHistory(farmer)}
+                            title={t("customers.paymentHistory")}
                           >
-                            <CreditCard className="h-4 w-4" />
+                            <History className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
+                          {hasPendingPayment && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+                              onClick={() => handlePayment(farmer)}
+                              title={t("payments.payFarmer")}
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {/* <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
                                 variant="ghost"
@@ -716,7 +562,7 @@ export default function Customers() {
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
-                          </AlertDialog>
+                          </AlertDialog> */}
                         </div>
                       </div>
                     </div>
@@ -754,16 +600,7 @@ export default function Customers() {
                     </div>
                   </div>
 
-                  {hasPendingPayment && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full border-amber-300 bg-amber-50/80 hover:bg-amber-100 text-amber-900"
-                      onClick={() => handlePayment(farmer)}
-                    >
-                      {t("payments.payFarmer")}
-                    </Button>
-                  )}
+                   
 
                   <div className="space-y-2">
                     {farmer.email && (
@@ -785,11 +622,7 @@ export default function Customers() {
                     )}
                   </div>
 
-                  {farmer.createdAt && (
-                    <p className="text-xs text-muted-foreground text-center pt-0.5">
-                      {t("farmers.createdAt")}: {formatDisplayDate(farmer.createdAt)}
-                    </p>
-                  )}
+                  
                 </CardContent>
               </Card>
             );

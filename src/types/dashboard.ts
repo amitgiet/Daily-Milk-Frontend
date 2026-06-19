@@ -57,6 +57,22 @@ export interface TodayMilkCollectionEntry {
   };
 }
 
+export interface FarmerMilkCollectionEntry {
+  farmerId: number;
+  shift: "morning" | "evening";
+  quantity: string | number;
+  farmer: {
+    id: number;
+    name: string;
+  };
+}
+
+export interface FarmerMilkCollectionsResponse {
+  success: boolean;
+  message?: string;
+  data: FarmerMilkCollectionEntry[];
+}
+
 export interface FarmerMilkSummary {
   farmerId: number;
   name: string;
@@ -69,6 +85,17 @@ export interface TodayMilkCollectionsResponse {
   success: boolean;
   message?: string;
   data: TodayMilkCollectionEntry[];
+}
+
+export interface TodayShiftMilkCollectionEntry {
+  shift: "morning" | "evening";
+  totalQuantity: string | number;
+}
+
+export interface TodayShiftMilkCollectionsResponse {
+  success: boolean;
+  message?: string;
+  data: TodayShiftMilkCollectionEntry[];
 }
 
 export interface FarmerPendingPaymentEntry {

@@ -58,7 +58,19 @@
     "warning": "चेतावनी",
     "info": "जानकारी",
     "saveAndPrint": "सहेजें और प्रिंट करें",
-    "print": "प्रिंट करें"
+    "print": "प्रिंट करें",
+    "online": "ऑनलाइन",
+    "offline": "ऑफलाइन",
+    "backOnline": "आप फिर से ऑनलाइन हैं",
+    "noInternet": "कोई इंटरनेट कनेक्शन नहीं"
+  },
+  "notifications": {
+    "title": "सूचनाएं",
+    "markAllRead": "सभी को पढ़ा हुआ चिह्नित करें",
+    "unreadCount": "{{count}} अपठित",
+    "noNotifications": "अभी कोई सूचना नहीं",
+    "noNotificationsDescription": "आप सभी सूचनाओं से अपडेट हैं!",
+    "viewSettings": "सूचना सेटिंग्स"
   },
   "auth": {
     "login": "लॉगिन",
@@ -167,11 +179,16 @@
     "farmerCollectionChartDescription": "आज किसानों द्वारा सुबह और शाम का संग्रह",
     "shiftDistribution": "सुबह बनाम शाम",
     "shiftDistributionDescription": "शिफ्ट के अनुसार आज का संग्रह विभाजन",
+    "today": "आज",
+    "thisMonth": "इस महीने",
+    "year": "वर्ष",
     "liters": "लीटर",
+    "amount": "राशि",
     "noChartData": "चार्ट के लिए कोई डेटा उपलब्ध नहीं",
     "revenue": "राजस्व",
     "profit": "लाभ",
     "noMilkCollectionToday": "आज के लिए कोई दूध संग्रह नहीं",
+    "noMonthlyFarmerCollection": "इस महीने किसी किसान का दूध संग्रह नहीं",
     "noLowStockItems": "कोई कम स्टॉक आइटम नहीं",
     "noRecentOrders": "कोई हाल का ऑर्डर नहीं",
     "myDairies": "मेरी डेयरी",
@@ -279,6 +296,8 @@
     "noHistoryDescription": "इस किसान ने अभी तक कोई दूध नहीं बेचा है",
     "paymentStatus": "भुगतान स्थिति",
     "paymentDate": "भुगतान तिथि",
+    "paymentHistory": "भुगतान इतिहास",
+    "noPaymentHistory": "इस अवधि के लिए कोई भुगतान इतिहास नहीं मिला",
     "paid": "भुगतान किया",
     "pending": "लंबित"
   },
@@ -841,6 +860,14 @@
     "paymentStatementDownloadSuccess": "भुगतान विवरण सफलतापूर्वक डाउनलोड हो गया",
     "paymentStatementDownloadError": "भुगतान विवरण डाउनलोड करने में विफल",
     "pdfDownloadSuccess": "भुगतान रिपोर्ट PDF सफलतापूर्वक डाउनलोड हो गई",
-    "pdfDownloadError": "भुगतान रिपोर्ट PDF डाउनलोड करने में विफल"
+    "pdfDownloadError": "भुगतान रिपोर्ट PDF डाउनलोड करने में विफल",
+    "farmerLabel": "किसान",
+    "unpaidMilkList": "अवैतनिक दूध प्रविष्टियां",
+    "loadingUnpaidMilk": "अवैतनिक दूध प्रविष्टियां लोड हो रही हैं...",
+    "noUnpaidMilk": "कोई अवैतनिक दूध प्रविष्टि नहीं मिली",
+    "selectAllUnpaid": "सभी अवैतनिक प्रविष्टियां चुनें",
+    "selectEntry": "दूध प्रविष्टि चुनें",
+    "selectedCount": "{{count}} चयनित",
+    "paymentAddError": "भुगतान जोड़ने में विफल"
   }
 }

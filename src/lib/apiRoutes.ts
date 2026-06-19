@@ -58,6 +58,8 @@ export const allRoutes = {
     get: (id: string | number) => `/admin/milk/${id}`,
     update: (id: string | number) => `/admin/milk/${id}`,
     delete: (id: string | number) => `/admin/milk/${id}`,
+    getUnpaidMilkCollections: (farmerId: string | number) =>
+      `/admin/milk/get-unpaid-milk-collections?farmerId=${farmerId}`,
   },
   inventory: {
     list: "/admin/inventory",
@@ -69,11 +71,14 @@ export const allRoutes = {
   },
   dashboard: {
     stats: "/admin/dashboard-stats",
-    todayMilkCollections: "/admin/dairy/dashboard/today-milk-collections",
+    todayMorningEveningMilkCollections: (type: "today" | "month" = "today") =>
+      `/admin/dairy/dashboard/today-morning-evening-milk-collections?type=${type}`,
     farmersWithPendingPayments:
       "/admin/dairy/dashboard/farmers-with-pending-payments",
     milkProgressPrevious12Months:
       "/admin/dairy/dashboard/milk-progress-previous-12-month",
+    monthlyFarmerMilkCollections: (type: "today" | "month" = "today") =>
+      `/admin/dairy/dashboard/monthly-farmer-milk-collections?type=${type}`,
     lowStockAlerts: "/admin/dashboard/low-stock-alerts",
     recentActivity: "/admin/dashboard/recent-activity",
   },
@@ -160,6 +165,11 @@ export const allRoutes = {
       if (endDate) url += `&endDate=${endDate}`;
       return url;
     },
+    getFarmerPaymentHistory: (
+      farmerId: string | number,
+      type: "today" | "month" | "12month" = "month",
+    ) =>
+      `/admin/dairy/get-farmer-payment-history?farmerId=${farmerId}&type=${type}`,
   },
   subscriptions: {
     list: "/admin/subscriptions",
