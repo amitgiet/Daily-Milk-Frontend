@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { isSystemOnline } from '@/lib/networkStatus';
 
 interface UseApiState<T> {
   data: T | null;
@@ -43,26 +44,41 @@ export function useApi<T = any>(
             }
             
             return data;
-          } else {
-            const errorMessage = 'API call failed';
-            setState(prev => ({ ...prev, error: errorMessage, loading: false }));
-            
-            if (options?.onError) {
-              options.onError(errorMessage);
-            }
-            
+          }
+
+          if ('offline' in result && result.offline) {
+            setState(prev => ({ ...prev, loading: false, error: null }));
             return null;
           }
-        } else {
-          // Handle direct API response
-          setState(prev => ({ ...prev, data: result, loading: false }));
-          
-          if (options?.onSuccess) {
-            options.onSuccess(result);
+
+          if ('networkError' in result && result.networkError) {
+            setState(prev => ({ ...prev, loading: false, error: null }));
+            return null;
           }
-          
-          return result;
+
+          if ('aborted' in result && result.aborted) {
+            setState(prev => ({ ...prev, loading: false, error: null }));
+            return null;
+          }
+
+          const errorMessage = 'API call failed';
+          setState(prev => ({ ...prev, error: errorMessage, loading: false }));
+
+          if (options?.onError) {
+            options.onError(errorMessage);
+          }
+
+          return null;
         }
+
+        // Handle direct API response
+        setState(prev => ({ ...prev, data: result, loading: false }));
+
+        if (options?.onSuccess) {
+          options.onSuccess(result);
+        }
+
+        return result;
       } catch (error: any) {
         const errorMessage = error?.message || 'An error occurred';
         setState(prev => ({ ...prev, error: errorMessage, loading: false }));
@@ -115,12 +131,23 @@ export function useQuery<T = any>(
 ) {
   const api = useApi(apiFunction, options);
 
-  // Auto-execute on mount if specified
-  React.useEffect(() => {
-    if (options?.autoExecute && !api.data && !api.loading) {
+  useEffect(() => {
+    if (!options?.autoExecute || !isSystemOnline()) return;
+    if (!api.data && !api.loading) {
       api.execute(...(options.autoExecuteArgs || []));
     }
-  }, []); // Only run on mount
+  }, []);
+
+  useEffect(() => {
+    if (!options?.autoExecute) return;
+
+    function handleOnline() {
+      api.execute(...(options.autoExecuteArgs || []));
+    }
+
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [api.execute, options?.autoExecute, options?.autoExecuteArgs]);
 
   return api;
-} 
+}

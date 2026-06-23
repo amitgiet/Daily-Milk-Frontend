@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from "@/hooks/useAuth";
 import { UserRole } from '../types/auth';
 
 export const usePermissions = () => {

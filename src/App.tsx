@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/AuthProvider";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RouteLogger from "./components/RouteLogger";
@@ -30,6 +30,7 @@ import PendingSubscriptions from "./pages/PendingSubscriptions";
 import NotFound from "./pages/NotFound";
 import DiaryDispatch from "./pages/DiaryDispatch";
 import PaymentManagement from "./pages/PaymentManagement";
+import OfflineDataListing from "./pages/OfflineDataListing";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="dairy-dashboard" element={<DairyDashboard />} />
               {/* <Route path="inventory" element={<Inventory />} /> */}
               <Route path="milk-collection" element={<MilkCollection />} />
+              <Route path="offline-data" element={<OfflineDataListing />} />
               {/* <Route path="dairy-rates" element={<DairyRates />} /> */}
               <Route path="dairy-reports" element={<DairyReports />} />
               <Route path="customers" element={<Customers />} />

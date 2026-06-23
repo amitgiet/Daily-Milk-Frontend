@@ -19,6 +19,7 @@ import {
   Calculator,
   AlertTriangle,
   Building2,
+  Database,
   Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,8 +37,9 @@ import { NotificationPopup } from "./NotificationPopup";
 import {
   NetworkStatusBadge,
   NetworkStatusNotifier,
+  OfflineBanner,
 } from "./NetworkStatusBadge";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import {
   canAccessRoute,
   getRoleName,
@@ -77,6 +79,11 @@ export default function Layout() {
           href: "/milk-collection",
           icon: Milk,
         },
+        {
+          name: t("navigation.offlineData"),
+          href: "/offline-data",
+          icon: Database,
+        },
         { name: t("navigation.settings"), href: "/settings", icon: Settings },
       ];
     }
@@ -100,6 +107,11 @@ export default function Layout() {
         name: t("navigation.milkCollection"),
         href: "/milk-collection",
         icon: Milk,
+      },
+      {
+        name: t("navigation.offlineData"),
+        href: "/offline-data",
+        icon: Database,
       },
       { name: t("navigation.customers"), href: "/customers", icon: User },
       {
@@ -159,7 +171,7 @@ export default function Layout() {
     return allNavigation.filter((item) => {
       if (
         userRole === 1 &&
-        ["/milk-collection", "/customers", "/diary-dispatch", "/subscription-plans"].includes(
+        ["/milk-collection", "/offline-data", "/customers", "/diary-dispatch", "/subscription-plans"].includes(
           item.href,
         )
       ) {
@@ -473,6 +485,8 @@ export default function Layout() {
             </div>
           </div>
         </div>
+
+        <OfflineBanner />
 
         {/* Page content */}
         <main className="min-h-[calc(100vh-4rem)]">

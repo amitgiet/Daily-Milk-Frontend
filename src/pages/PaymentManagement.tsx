@@ -50,6 +50,13 @@ import { DateInput } from "../components/ui/date-input";
 import { toast } from "../hooks/use-toast";
 import { Plus, Edit, Trash2, Calendar, CreditCard, Filter, X, Download } from "lucide-react";
 import { toast as notify } from "react-toastify";
+import {
+  fetchAndSyncFarmers,
+  getStoredFarmers,
+  type StoredFarmer,
+} from "@/lib/farmerStorage";
+
+type Farmer = StoredFarmer;
 
 interface Payment {
   id: number;
@@ -68,12 +75,6 @@ interface Payment {
     name: string;
     phone: string;
   };
-}
-
-interface Farmer {
-  id: number;
-  name: string;
-  phone: string;
 }
 
 function isPaymentEditable(createdAt?: string) {
@@ -120,13 +121,31 @@ const PaymentManagement = () => {
     note: "",
   });
 
-  // Fetch farmers for dropdown
-  const { data: farmersData, execute: fetchFarmers } = useQuery(
-    () => apiCall(allRoutes.farmers.getFarmers, 'get'),
-    {
-      autoExecute: true,
-    }
-  );
+  const [farmers, setFarmers] = useState<Farmer[]>([]);
+
+  useEffect(() => {
+    let active = true;
+
+    getStoredFarmers()
+      .then((cached) => {
+        if (active && cached.length > 0) setFarmers(cached);
+      })
+      .catch((error) => {
+        console.error("Failed to load cached farmers:", error);
+      });
+
+    fetchAndSyncFarmers()
+      .then((farmers) => {
+        if (active) setFarmers(farmers);
+      })
+      .catch((error) => {
+        console.error("Failed to load farmers:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Fetch payments
   const { data: paymentsData, execute: fetchPayments, loading: isLoading } = useQuery(
@@ -322,7 +341,6 @@ const PaymentManagement = () => {
   };
 
   const payments: Payment[] = paymentsData?.data || [];
-  const farmers: Farmer[] = farmersData?.data || [];
 
   return (
     <div className="space-y-6 p-6">

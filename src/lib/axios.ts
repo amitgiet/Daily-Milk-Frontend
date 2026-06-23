@@ -53,6 +53,24 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    const requestUrl = error.config?.url;
+    const requestMethod = error.config?.method;
+    const errorCode = error.code;
+    const errorMessage = error.message?.toLowerCase() ?? "";
+
+    if (
+      errorCode === "ERR_CANCELED" ||
+      errorMessage.includes("abort") ||
+      errorMessage.includes("ns_binding_aborted")
+    ) {
+      return Promise.reject({
+        aborted: true,
+        message: error.message,
+        url: requestUrl,
+        method: requestMethod,
+      });
+    }
+
     // Handle different error scenarios
     if (error.response) {
       // Server responded with error status

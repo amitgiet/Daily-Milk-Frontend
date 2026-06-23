@@ -49,22 +49,43 @@ import {
   Settings as SettingsGear,
   ChevronRight,
   CircleHelp,
+  HardDrive,
+  FolderOpen,
+  AlertTriangle,
 } from "lucide-react";
+import { useBackupFolder } from "@/hooks/useBackupFolder";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { toast } from "react-toastify";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { UserRole, ProfileSubscription, UserProfile } from "@/types/auth";
 import { formatDisplayDateLong } from "@/lib/dateFormat";
 import { cn, getProfilePictureUrl, resolveImageUrl } from "@/lib/utils";
+import {
+  DEFAULT_MILK_RATE_SETTINGS,
+  fetchAndSyncMilkRateSettings,
+  getMilkRateSettings,
+  updateAndSyncMilkRateSettings,
+} from "@/lib/milkRateStorage";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DATA_SAVING_PATH_OPTIONS,
+  type DataSavingPath,
+  getDataSavingPathDescription,
+  getDataSavingPathsLabel,
+  getSystemSettings,
+  saveSystemSettings,
+} from "@/lib/systemSettingsStorage";
+import { BACKUP_FOLDER_JSON_FILES } from "@/lib/backupFileNames";
 
-interface MilkRateSettings {
-  fatRate: number | string;
-  snfRate: number | string;
-  formulaType: "fatOnly" | "fatSnf";
-}
-
-type AccountTab = "profile" | "subscription" | "address" | "milkRates" | "security" | "notifications";
+type AccountTab =
+  | "profile"
+  | "subscription"
+  | "address"
+  | "milkRates"
+  | "security"
+  | "notifications"
+  | "system";
 
 function formatMemberSince(value?: string | null) {
   if (!value) return "-";
@@ -135,6 +156,7 @@ export default function Settings() {
   const [milkRateSettings, setMilkRateSettings] = useState({
     fatRate: "2.00",
     snfRate: "1.00",
+    govtSubsidy: "0.00",
     formulaType: "fatOnly", // fatOnly, fatSnf
   });
   const [isLoadingMilkRates, setIsLoadingMilkRates] = useState(false);
@@ -147,13 +169,37 @@ export default function Settings() {
   const [profileSubscription, setProfileSubscription] =
     useState<ProfileSubscription | null>(null);
   const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
+  const [dataSavingPaths, setDataSavingPaths] = useState<DataSavingPath[]>(["indexeddb"]);
+  const [isSavingSystemSettings, setIsSavingSystemSettings] = useState(false);
   const profilePictureInputRef = useRef<HTMLInputElement>(null);
+  const {
+    isSupported: isBackupSupported,
+    isConfigured: isBackupConfigured,
+    folderName: backupFolderName,
+    status: backupStatus,
+    lastBackupAt,
+    lastSyncAt,
+    pendingSyncCount,
+    permissionRevoked: isBackupPermissionRevoked,
+    lastError: backupLastError,
+    isSelecting: isSelectingBackupFolder,
+    isRestoring: isRestoringBackup,
+    selectBackupFolder,
+    restoreFromBackup,
+    getStatusLabelKey,
+    isBackupError,
+  } = useBackupFolder();
 
   const MAX_PROFILE_PICTURE_SIZE = 5 * 1024 * 1024;
 
   useEffect(() => {
     if (user) setUserData(user);
   }, [user]);
+
+  useEffect(() => {
+    const settings = getSystemSettings();
+    setDataSavingPaths(settings.dataSavingPaths);
+  }, []);
 
   const loadProfile = async () => {
     if (!user) return;
@@ -271,30 +317,17 @@ export default function Settings() {
     if (!user || (user.roleId !== UserRole.ADMIN && user.roleId !== UserRole.DAIRY)) {
       return;
     }
-    
+
     setIsLoadingMilkRates(true);
     try {
-      const response = await apiCall(allRoutes.dairy.rates, "get");
-      if (response.success && response.data) {
-        const data = response.data.data as unknown as MilkRateSettings;
-        setMilkRateSettings({
-          fatRate: data.fatRate?.toString() || "2.00",
-          snfRate: data.snfRate?.toString() || "1.00",
-          formulaType: data.formulaType || "fatOnly",
-        });
-      }
+      const cachedSettings = await getMilkRateSettings();
+      setMilkRateSettings(cachedSettings);
+
+      const settings = await fetchAndSyncMilkRateSettings();
+      setMilkRateSettings(settings);
     } catch (error) {
       console.error("Error loading milk rate settings:", error);
-      // Load from localStorage as fallback
-      const savedSettings = localStorage.getItem("milkRateSettings");
-      if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        setMilkRateSettings({
-          fatRate: settings.fatRate || "2.00",
-          snfRate: settings.snfRate || "1.00",
-          formulaType: settings.formulaType || "fatOnly",
-        });
-      }
+      setMilkRateSettings(DEFAULT_MILK_RATE_SETTINGS);
       toast.error(t("settings.usingLocalSettings"));
     } finally {
       setIsLoadingMilkRates(false);
@@ -310,22 +343,10 @@ export default function Settings() {
     
     setIsSavingMilkRates(true);
     try {
-      const response = await apiCall(allRoutes.dairy.updateRates, "post", {
-        fatRate: parseFloat(milkRateSettings.fatRate),
-        snfRate: parseFloat(milkRateSettings.snfRate),
-        formulaType: milkRateSettings.formulaType,
-      });
+      const { success, settings } = await updateAndSyncMilkRateSettings(milkRateSettings);
 
-      if (response.success) {
-        // Save to localStorage for immediate use in other components
-        localStorage.setItem(
-          "milkRateSettings",
-          JSON.stringify({
-            fatRate: milkRateSettings.fatRate,
-            snfRate: milkRateSettings.snfRate,
-            formulaType: milkRateSettings.formulaType,
-          })
-        );
+      if (success) {
+        setMilkRateSettings(settings);
         toast.success(t("settings.milkRateSettingsUpdated"));
       } else {
         toast.error(t("settings.failedToUpdateMilkRates"));
@@ -597,6 +618,103 @@ export default function Settings() {
     ? profileSubscription.status === "active"
     : hasSubscription && dairySubscription?.status === "active";
 
+  const handleSelectBackupFolder = async () => {
+    if (!isBackupSupported) {
+      toast.error(t("settings.backupFolderUnsupported"));
+      return;
+    }
+
+    try {
+      const result = await selectBackupFolder();
+      if (!result) return;
+
+      if (result.metadata.status === "error" && result.metadata.lastError) {
+        toast.warning(
+          t("settings.backupFolderSelectedWithWarning", {
+            folderName: result.folderName,
+          }),
+        );
+        return;
+      }
+
+      toast.success(
+        t("settings.backupFolderSelected", { folderName: result.folderName }),
+      );
+    } catch (error) {
+      console.error("Failed to select backup folder:", error);
+      if (isBackupError(error)) {
+        if (error.code === "UNSUPPORTED") {
+          toast.error(t("settings.backupFolderUnsupported"));
+        } else if (error.code === "PERMISSION_DENIED") {
+          toast.error(t("settings.backupPermissionDenied"));
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
+      toast.error(t("settings.failedToSelectBackupFolder"));
+    }
+  };
+
+  const handleRestoreFromBackup = async () => {
+    try {
+      const result = await restoreFromBackup();
+      toast.success(
+        t("settings.backupRestoreSuccess", {
+          restored: result.restored,
+          skipped: result.skipped,
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to restore from backup:", error);
+      if (isBackupError(error)) {
+        toast.error(error.message);
+        return;
+      }
+      toast.error(t("settings.failedToRestoreBackup"));
+    }
+  };
+
+  const formatBackupTimestamp = (value: string | null) => {
+    if (!value) return t("settings.backupNever");
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return t("settings.backupNever");
+    return format(parsed, "PPpp");
+  };
+
+  const toggleDataSavingPath = (path: DataSavingPath, checked: boolean) => {
+    setDataSavingPaths((current) => {
+      if (checked) {
+        return current.includes(path) ? current : [...current, path];
+      }
+
+      if (current.length === 1) {
+        toast.error(t("settings.selectAtLeastOneDataPath"));
+        return current;
+      }
+
+      return current.filter((item) => item !== path);
+    });
+  };
+
+  const handleSaveSystemSettings = async () => {
+    if (dataSavingPaths.length === 0) {
+      toast.error(t("settings.selectAtLeastOneDataPath"));
+      return;
+    }
+
+    setIsSavingSystemSettings(true);
+    try {
+      saveSystemSettings({ dataSavingPaths });
+      toast.success(t("settings.systemSettingsSaved"));
+    } catch (error) {
+      console.error("Failed to save system settings:", error);
+      toast.error(t("settings.failedToSaveSystemSettings"));
+    } finally {
+      setIsSavingSystemSettings(false);
+    }
+  };
+
   const accountNavItems: { id: AccountTab; icon: typeof User; label: string }[] = [
     { id: "profile", icon: User, label: t("settings.profile") },
     { id: "subscription", icon: CreditCard, label: t("settings.subscriptionTab") },
@@ -604,6 +722,7 @@ export default function Settings() {
     { id: "milkRates", icon: Milk, label: t("settings.milkRateSettings") },
     { id: "security", icon: Shield, label: t("settings.security") },
     { id: "notifications", icon: Bell, label: t("settings.notifications") },
+    { id: "system", icon: HardDrive, label: t("settings.system") },
   ];
 
   const showProfileSection = activeTab === "profile";
@@ -613,6 +732,7 @@ export default function Settings() {
   const showMilkRatesSection = activeTab === "milkRates";
   const showSecuritySection = activeTab === "security";
   const showNotificationsSection = activeTab === "notifications";
+  const showSystemSection = activeTab === "system";
 
   const renderProfileCard = () => (
     <Card className="border border-border/60 shadow-sm">
@@ -887,6 +1007,26 @@ export default function Settings() {
               </p>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="govtSubsidy">{t("settings.govtSubsidy")}</Label>
+              <Input
+                id="govtSubsidy"
+                type="number"
+                step="0.01"
+                min="0"
+                value={milkRateSettings.govtSubsidy}
+                onChange={(e) =>
+                  setMilkRateSettings((prev) => ({
+                    ...prev,
+                    govtSubsidy: e.target.value,
+                  }))
+                }
+                placeholder="0.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("settings.govtSubsidyDescription")}
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="formulaType">{t("settings.formulaType")}</Label>
               <Select
                 value={milkRateSettings.formulaType}
@@ -1128,6 +1268,182 @@ export default function Settings() {
     </Card>
   );
 
+  const renderSystemCard = () => (
+    <Card className="border border-border/60 shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <HardDrive className="h-5 w-5 text-primary" />
+          {t("settings.systemSettings")}
+        </CardTitle>
+        <CardDescription>{t("settings.systemSettingsDesc")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-3">
+          <Label>{t("settings.dataSavingPaths")}</Label>
+          <p className="text-sm text-muted-foreground">
+            {t("settings.selectDataSavingPaths")}
+          </p>
+          <div className="space-y-3">
+            {DATA_SAVING_PATH_OPTIONS.map((path) => {
+              const pathLabelKey =
+                path === "indexeddb"
+                  ? "settings.dataPathIndexedDb"
+                  : "settings.dataPathLocalStorage";
+
+              return (
+                <div
+                  key={path}
+                  className="flex items-start gap-3 rounded-lg border bg-background p-4"
+                >
+                  <Checkbox
+                    id={`data-saving-path-${path}`}
+                    checked={dataSavingPaths.includes(path)}
+                    onCheckedChange={(checked) =>
+                      toggleDataSavingPath(path, checked === true)
+                    }
+                  />
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor={`data-saving-path-${path}`}
+                      className="cursor-pointer font-medium"
+                    >
+                      {t(pathLabelKey)}
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      {getDataSavingPathDescription(path)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+          <p className="text-sm font-medium">{t("settings.currentDataPath")}</p>
+          <p className="text-sm text-muted-foreground">
+            {getDataSavingPathsLabel(dataSavingPaths)}
+          </p>
+        </div>
+
+        <div className="space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <FolderOpen className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">{t("settings.localBackupTitle")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("settings.localBackupDesc")}
+              </p>
+              <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                {BACKUP_FOLDER_JSON_FILES.map((fileName) => (
+                  <li key={fileName}>{fileName}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {!isBackupSupported && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>{t("settings.backupFolderUnsupported")}</p>
+            </div>
+          )}
+
+          {isBackupPermissionRevoked && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>{t("settings.backupPermissionRevokedWarning")}</p>
+            </div>
+          )}
+
+          {backupLastError && backupStatus === "error" && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>{backupLastError}</p>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md border bg-background p-3 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {t("settings.backupFolderSelectedLabel")}
+              </p>
+              <div className="flex items-center gap-2">
+                <Badge variant={isBackupConfigured ? "default" : "secondary"}>
+                  {isBackupConfigured
+                    ? t("common.yes")
+                    : t("common.no")}
+                </Badge>
+                {backupFolderName && (
+                  <span className="text-sm font-medium truncate">{backupFolderName}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-md border bg-background p-3 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {t("settings.backupStatus")}
+              </p>
+              <p className="text-sm font-medium">{t(getStatusLabelKey(backupStatus))}</p>
+            </div>
+
+            <div className="rounded-md border bg-background p-3 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {t("settings.lastBackupTime")}
+              </p>
+              <p className="text-sm font-medium">{formatBackupTimestamp(lastBackupAt)}</p>
+            </div>
+
+            <div className="rounded-md border bg-background p-3 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {t("settings.pendingSyncCount")}
+              </p>
+              <p className="text-sm font-medium">{pendingSyncCount}</p>
+            </div>
+          </div>
+
+          {lastSyncAt && (
+            <p className="text-xs text-muted-foreground">
+              {t("settings.lastSyncTime")}: {formatBackupTimestamp(lastSyncAt)}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSelectBackupFolder}
+              disabled={isSelectingBackupFolder}
+            >
+              {isSelectingBackupFolder
+                ? t("settings.saving")
+                : isBackupConfigured
+                  ? t("settings.reselectBackupFolder")
+                  : t("settings.selectBackupFolder")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRestoreFromBackup}
+              disabled={!isBackupConfigured || isRestoringBackup}
+            >
+              {isRestoringBackup
+                ? t("settings.saving")
+                : t("settings.restoreFromBackup")}
+            </Button>
+          </div>
+        </div>
+
+        <Button
+          onClick={handleSaveSystemSettings}
+          disabled={isSavingSystemSettings}
+        >
+          {isSavingSystemSettings ? t("settings.saving") : t("settings.saveSystemSettings")}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="p-6">
       {isDairyUser ? (
@@ -1189,6 +1505,7 @@ export default function Settings() {
                 {showSecuritySection && renderSecurityCard()}
                 {showNotificationsSection && renderNotificationsCard()}
                 {showMilkRatesSection && renderMilkRateCard()}
+                {showSystemSection && renderSystemCard()}
               </>
             )}
           </div>

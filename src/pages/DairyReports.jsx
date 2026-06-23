@@ -256,7 +256,9 @@ const DairyReports = () => {
                   <TableHead>{t("milkCollection.snf")}</TableHead>
                   <TableHead>{t("milkCollection.quantity")}</TableHead>
                   <TableHead>{t("milkCollection.rate")}</TableHead>
-                  <TableHead>{t("milkCollection.totalAmount")} (₹)</TableHead>
+                  <TableHead>{t("milkCollection.totalAmount")}</TableHead>
+                  <TableHead>{t("milkCollection.subsidyDeductionAmount")}</TableHead>
+                  <TableHead>{t("milkCollection.netAmount")} (₹)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,6 +288,12 @@ const DairyReports = () => {
                     </TableCell>
                     <TableCell>
                       ₹{(parseFloat(entry.rate?.toString() || "0") || 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      ₹{(parseFloat(entry.amount?.toString() || "0") || 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      ₹{(parseFloat(entry.subsidyAmount?.toString() || "0") || 0).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       ₹

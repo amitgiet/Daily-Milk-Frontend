@@ -53,32 +53,20 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { apiCall } from "@/lib/apiCall";
-import { allRoutes } from "@/lib/apiRoutes";
-import { ApiResponse } from "@/types/auth";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { toast } from "sonner";
 import { PayFarmerDialog } from "@/components/payments/PayFarmerDialog";
 import { FarmerPaymentHistoryDialog } from "@/components/payments/FarmerPaymentHistoryDialog";
+import {
+  addAndSyncFarmer,
+  deleteAndSyncFarmer,
+  fetchAndSyncFarmers,
+  getStoredFarmers,
+  updateAndSyncFarmer,
+  type StoredFarmer,
+} from "@/lib/farmerStorage";
 
-// Interface for farmer based on API response
-interface Farmer {
-  id: number;
-  name: string;
-  phone: string;
-  email?: string;
-  address?: string;
-  dairyId: number;
-  pendingPayment?: string;
-  profilePicture?: string | null;
-  profilePictureUrl?: string | null;
-  user?: {
-    profilePictureUrl?: string | null;
-    profilePicture?: string | null;
-  };
-  createdAt?: string;
-  updatedAt?: string;
-}
+type Farmer = StoredFarmer;
 
 function getFarmerProfilePicture(farmer: Farmer) {
   return getProfilePictureUrl(farmer);
@@ -133,26 +121,23 @@ export default function Customers() {
     },
   });
 
-  // Fetch farmers from API
   const fetchFarmers = async () => {
-    setLoading(true);
     try {
-      const response = (await apiCall(
-        allRoutes.farmers.getFarmers,
-        "get"
-      )) as ApiResponse<{ data: Farmer[] }>;
-      if (response.success && response.data) {
-        const farmersData = Array.isArray(response.data.data)
-          ? response.data.data
-          : [];
-        setFarmers(farmersData);
+      const cached = await getStoredFarmers();
+      if (cached.length > 0) {
+        setFarmers(cached);
+        setLoading(false);
       } else {
-        setFarmers([]);
+        setLoading(true);
       }
+
+      const farmersData = await fetchAndSyncFarmers();
+      setFarmers(farmersData);
     } catch (error) {
       console.error("Failed to fetch farmers:", error);
       toast.error(t("farmers.failedToLoad"));
-      setFarmers([]);
+      const cached = await getStoredFarmers().catch(() => []);
+      if (cached.length === 0) setFarmers([]);
     } finally {
       setLoading(false);
     }
@@ -163,36 +148,32 @@ export default function Customers() {
     fetchFarmers();
   }, []);
 
-  // Handle add/edit farmer
   const handleSubmitFarmer = async (data: FarmerFormData) => {
     setSubmitting(true);
     try {
       if (editingFarmer) {
-        // Update existing farmer
-        const response = await apiCall(
-          allRoutes.farmers.updateFarmer(editingFarmer.id),
-          "put",
-          data
+        const { success, farmers } = await updateAndSyncFarmer(
+          editingFarmer.id,
+          data,
+          editingFarmer,
         );
-        if (response.success) {
+        if (success) {
           toast.success(t("farmers.farmerUpdated"));
+          setFarmers(farmers);
           setShowAddDialog(false);
           setEditingFarmer(null);
           reset();
-          fetchFarmers(); // Refresh the list
         }
       } else {
-        // Add new farmer
-        console.log("dsdsd", data);
-        const response = await apiCall(allRoutes.farmers.addFarmer, "post", {
+        const { success, farmers } = await addAndSyncFarmer({
           ...data,
           password: data.phone,
         });
-        if (response.success) {
+        if (success) {
           toast.success(t("farmers.farmerAdded"));
+          setFarmers(farmers);
           setShowAddDialog(false);
           reset();
-          fetchFarmers(); // Refresh the list
         }
       }
     } catch (error) {
@@ -213,16 +194,12 @@ export default function Customers() {
     setShowAddDialog(true);
   };
 
-  // Handle delete farmer
   const handleDeleteFarmer = async (farmerId: number) => {
     try {
-      const response = await apiCall(
-        allRoutes.farmers.delete(farmerId),
-        "delete"
-      );
-      if (response.success) {
+      const { success, farmers } = await deleteAndSyncFarmer(farmerId);
+      if (success) {
         toast.success(t("farmers.farmerDeleted"));
-        fetchFarmers(); // Refresh the list
+        setFarmers(farmers);
       }
     } catch (error) {
       console.error("Failed to delete farmer:", error);

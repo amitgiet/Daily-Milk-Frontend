@@ -1,4 +1,4 @@
-import { UserRole, Permission, RoutePermission } from "@/types/auth";
+import { UserRole, Permission, RoutePermission, DairySubscription } from "@/types/auth";
 
 // Define permissions for each role
 export const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
@@ -78,6 +78,19 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
     },
     roles: [UserRole.ADMIN, UserRole.DAIRY, UserRole.FARMER],
     requiresSubscription: true, // Dairy needs subscription to access
+  },
+
+  // Offline saved data listing
+  {
+    path: "/offline-data",
+    permissions: {
+      canView: true,
+      canCreate: false,
+      canEdit: false,
+      canDelete: true,
+    },
+    roles: [UserRole.DAIRY, UserRole.FARMER],
+    requiresSubscription: true,
   },
 
   // Customers - Only admin and dairy can access, farmers cannot
@@ -280,7 +293,7 @@ export const canAccessRoute = (
   if (!routePermission.roles.includes(role)) return false;
 
   // Special handling for roleId 3 (Farmer) - they can access milk collection without subscription
-  if (role === UserRole.FARMER && path === "/milk-collection") {
+  if (role === UserRole.FARMER && (path === "/milk-collection" || path === "/offline-data")) {
     return true;
   }
 
@@ -351,22 +364,60 @@ export const isDairy = (roleId: number): boolean => roleId === UserRole.DAIRY;
 export const isFarmer = (roleId: number): boolean => roleId === UserRole.FARMER;
 
 // Subscription-related utilities
+function parseSubscriptionEndDate(endDate?: string | null): Date | null {
+  if (!endDate || endDate === "0000-00-00") return null;
+
+  const dateOnly = endDate.split("T")[0];
+  const parts = dateOnly.split("-").map(Number);
+
+  if (parts.length !== 3 || parts.some(Number.isNaN)) {
+    const parsed = new Date(endDate);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day, 23, 59, 59, 999);
+}
+
+export function toDairySubscription(
+  subscription: {
+    id: number;
+    dairyId?: number;
+    planId: number;
+    startDate: string;
+    endDate: string;
+    status: DairySubscription["status"];
+  } | null | undefined,
+  fallbackDairyId = 0,
+): DairySubscription | null {
+  if (!subscription) return null;
+
+  return {
+    id: subscription.id,
+    dairyId: subscription.dairyId ?? fallbackDairyId,
+    planId: subscription.planId,
+    startDate: subscription.startDate,
+    endDate: subscription.endDate,
+    status: subscription.status,
+  };
+}
+
 export const getSubscriptionStatus = (
-  dairySubscription: any,
+  dairySubscription: DairySubscription | null | undefined,
 ): "active" | "inactive" | "expired" | "none" => {
   if (!dairySubscription) return "none";
 
   if (dairySubscription.status === "active") {
-    // Check if subscription is expired
-    const endDate = new Date(dairySubscription.endDate);
-    const today = new Date();
-    if (endDate < today) return "expired";
+    const endDate = parseSubscriptionEndDate(dairySubscription.endDate);
+    if (endDate && endDate < new Date()) return "expired";
     return "active";
   }
 
   return dairySubscription.status || "inactive";
 };
 
-export const isSubscriptionActive = (dairySubscription: any): boolean => {
+export const isSubscriptionActive = (
+  dairySubscription: DairySubscription | null | undefined,
+): boolean => {
   return getSubscriptionStatus(dairySubscription) === "active";
 };

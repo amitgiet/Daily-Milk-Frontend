@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -35,29 +35,64 @@ import {
 import { useQuery, useMutation } from "../hooks/useApi";
 import { apiCall } from "../lib/apiCall";
 import { allRoutes } from "../lib/apiRoutes";
-import { useAuth } from "../contexts/AuthContext";
 import { usePermissions } from "../hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import Receipt from "../components/Reciept";
 import { useParams } from "react-router-dom";
 import { formatDisplayDate } from "@/lib/dateFormat";
 import { DateInput } from "@/components/ui/date-input";
 import { Milk } from "lucide-react";
 import { SearchableFarmerSelect } from "@/components/farmers/SearchableFarmerSelect";
-
-
-
-
+import {
+  fetchAndSyncFarmers,
+  getStoredFarmers,
+  type StoredFarmer,
+} from "@/lib/farmerStorage";
+import {
+  calculateMilkEntryFinancials,
+  DEFAULT_MILK_RATE_SETTINGS,
+  fetchAndSyncMilkRateSettings,
+  getMilkRateSettings,
+  type MilkRateSettingsRecord,
+} from "@/lib/milkRateStorage";
+import {
+  getTodayDateString,
+  getTodayLocalMilkEntries,
+  isSystemOnline,
+  isUnsyncedEntry,
+  OFFLINE_MILK_ENTRIES_UPDATED_EVENT,
+  saveOfflineMilkEntry,
+  syncOfflineMilkEntries,
+  DuplicateOfflineMilkEntryError,
+  type MilkCollectionPayload,
+  type OfflineMilkEntry,
+} from "@/lib/milkCollectionStorage";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import {
+  buildLocalMilkPrintReceipt,
+  fetchMilkPrintReceipt,
+  printMilkReceiptDocument,
+  type MilkPrintReceiptData,
+} from "@/lib/milkReceiptPrint";
+import { toast } from "react-toastify";
 
 interface MilkEntry {
   id: number;
+  localId?: string;
+  isLocal?: boolean;
   farmerId: number;
   farmerName?: string;
   date: string;
   shift: "morning" | "evening";
   quantity: number | string;
   fat: number | string;
+  fatRate?: number | string;
   snf: number | string;
+  snfRate?: number | string;
   rate: number | string;
+  amount: number | string;
+  subsidyDeduction: number | string;
+  subsidyAmount: number | string;
   totalAmount: number | string;
   createdAt: string;
   farmer?: {
@@ -66,10 +101,100 @@ interface MilkEntry {
   };
 }
 
-interface Farmer {
-  id: number;
-  name: string;
-  phone: string;
+type Farmer = StoredFarmer;
+
+function buildReceiptDataFromEntry(entry: MilkEntry): MilkPrintReceiptData {
+  return buildLocalMilkPrintReceipt({
+    farmerName: entry.farmer?.name || entry.farmerName || "Unknown Farmer",
+    date: entry.date,
+    shift: entry.shift,
+    fat: entry.fat,
+    fatRate: entry.fatRate ?? "0",
+    snf: entry.snf,
+    snfRate: entry.snfRate ?? "0",
+    rate: entry.rate,
+    quantity: entry.quantity,
+    amount: entry.amount,
+    totalAmount: entry.totalAmount,
+    subsidyDeduction: entry.subsidyDeduction,
+    subsidyAmount: entry.subsidyAmount,
+  });
+}
+
+function printMilkEntryReceipt(entry: MilkEntry) {
+  printMilkReceiptDocument(
+    buildLocalMilkPrintReceipt({
+      farmerName: entry.farmer?.name || entry.farmerName || "Unknown Farmer",
+      date: entry.date,
+      shift: entry.shift,
+      fat: entry.fat,
+      fatRate: entry.fatRate ?? "0",
+      snf: entry.snf,
+      snfRate: entry.snfRate ?? "0",
+      rate: entry.rate,
+      quantity: entry.quantity,
+      amount: entry.amount,
+      totalAmount: entry.totalAmount,
+      subsidyDeduction: entry.subsidyDeduction,
+      subsidyAmount: entry.subsidyAmount,
+    }),
+  );
+}
+
+function mapLocalEntryToMilkEntry(entry: OfflineMilkEntry): MilkEntry {
+  return {
+    id: 0,
+    localId: entry.localId,
+    isLocal: true,
+    farmerId: entry.farmerId,
+    date: entry.date,
+    shift: entry.shift,
+    quantity: entry.quantity,
+    fat: entry.fat,
+    snf: entry.snf,
+    fatRate: entry.fatRate,
+    snfRate: entry.snfRate,
+    rate: entry.rate,
+    amount: entry.amount,
+    subsidyDeduction: entry.subsidyDeduction,
+    subsidyAmount: entry.subsidyAmount,
+    totalAmount: entry.totalAmount,
+    createdAt: entry.savedAt,
+    farmer: {
+      id: entry.farmerId,
+      name: entry.farmerName,
+    },
+  };
+}
+
+function buildMilkEntryFromPayload(
+  payload: MilkCollectionPayload,
+  farmerName: string,
+  isLocal = false,
+): MilkEntry {
+  return {
+    id: 0,
+    isLocal,
+    farmerId: payload.farmerId,
+    farmerName,
+    date: payload.date,
+    shift: payload.shift,
+    quantity: payload.quantity,
+    fat: payload.fat,
+    snf: payload.snf,
+    fatRate: payload.fatRate,
+    snfRate: payload.snfRate,
+    rate: payload.rate,
+    amount: payload.amount,
+    subsidyDeduction: payload.subsidyDeduction,
+    subsidyAmount: payload.subsidyAmount,
+    totalAmount: payload.totalAmount,
+    createdAt: new Date().toISOString(),
+    farmer: {
+      id: payload.farmerId,
+      name: farmerName,
+    },
+  };
 }
 
 function getDefaultShift(referenceDate: Date = new Date()): "morning" | "evening" {
@@ -79,20 +204,24 @@ function getDefaultShift(referenceDate: Date = new Date()): "morning" | "evening
 const MilkCollection: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const isOnline = useNetworkStatus();
   const [searchParams] = useSearchParams();
   const dairyId = searchParams.get('dairyId');
   const [selectedDairyId, setSelectedDairyId] = useState<number | null>(null);
   
-  // Convert dairyId from string to number and set state
   useEffect(() => {
     if (dairyId) {
       const dairyIdNumber = parseInt(dairyId, 10);
       if (!isNaN(dairyIdNumber)) {
         setSelectedDairyId(dairyIdNumber);
-        console.log('Dairy ID from query params:', dairyIdNumber);
       }
+      return;
     }
-  }, [dairyId]);
+
+    if (user?.dairyId) {
+      setSelectedDairyId(user.dairyId);
+    }
+  }, [dairyId, user?.dairyId]);
   
   const {
     isFarmerUser,
@@ -114,50 +243,132 @@ const MilkCollection: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingEntry, setEditingEntry] = useState<MilkEntry | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-  const [receiptData, setReceiptData] = useState<any>(null);
-  const [savedMilkEntry, setSavedMilkEntry] = useState<any>(null);
+  const [receiptData, setReceiptData] = useState<MilkPrintReceiptData | null>(null);
+  const [savedMilkEntry, setSavedMilkEntry] = useState<MilkEntry | null>(null);
+  const [milkRateSettings, setMilkRateSettings] =
+    useState<MilkRateSettingsRecord>(DEFAULT_MILK_RATE_SETTINGS);
+  const [farmers, setFarmers] = useState<Farmer[]>([]);
+  const [farmersLoading, setFarmersLoading] = useState(false);
+  const [localMilkEntries, setLocalMilkEntries] = useState<OfflineMilkEntry[]>([]);
+  const [localMilkLoading, setLocalMilkLoading] = useState(false);
+  const isSyncingOfflineRef = useRef(false);
+  const [printingEntryId, setPrintingEntryId] = useState<number | string | null>(
+    null,
+  );
 
-  // Fetch farmers list (only for admin/dairy users)
-  const {
-    data: farmersData,
-    loading: farmersLoading,
-    execute: fetchFarmers,
-  } = useQuery(() => apiCall(allRoutes.farmers.getFarmers, "get"), {
-    autoExecute: canManageMilk, // Only fetch if user can manage milk
-  });
+  const loadLocalMilkEntries = async () => {
+    setLocalMilkLoading(true);
+    try {
+      const shift =
+        selectedShift === "" ? undefined : selectedShift;
+      const entries = await getTodayLocalMilkEntries(shift);
+      setLocalMilkEntries(entries);
+    } catch (error) {
+      console.error("Failed to load local milk entries:", error);
+    } finally {
+      setLocalMilkLoading(false);
+    }
+  };
 
-  // Fetch milk collection list with farmer filtering
+  useEffect(() => {
+    getMilkRateSettings()
+      .then(setMilkRateSettings)
+      .catch((error) => {
+        console.error("Failed to load cached milk rate settings:", error);
+      });
+
+    fetchAndSyncMilkRateSettings()
+      .then(setMilkRateSettings)
+      .catch((error) => {
+        console.error("Failed to sync milk rate settings:", error);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!canManageMilk) return;
+
+    let active = true;
+
+    getStoredFarmers()
+      .then((cached) => {
+        if (!active || cached.length === 0) return;
+        setFarmers(cached);
+        setFarmersLoading(false);
+      })
+      .catch((error) => {
+        console.error("Failed to load cached farmers:", error);
+      });
+
+    setFarmersLoading(true);
+    fetchAndSyncFarmers()
+      .then((farmers) => {
+        if (active) setFarmers(farmers);
+      })
+      .catch((error) => {
+        console.error("Failed to load farmers:", error);
+      })
+      .finally(() => {
+        if (active) setFarmersLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canManageMilk]);
+
+  useEffect(() => {
+    if (!canManageMilk) return;
+
+    loadLocalMilkEntries();
+
+    function handleLocalEntriesUpdated() {
+      loadLocalMilkEntries();
+    }
+
+    window.addEventListener(
+      OFFLINE_MILK_ENTRIES_UPDATED_EVENT,
+      handleLocalEntriesUpdated,
+    );
+
+    return () => {
+      window.removeEventListener(
+        OFFLINE_MILK_ENTRIES_UPDATED_EVENT,
+        handleLocalEntriesUpdated,
+      );
+    };
+  }, [canManageMilk, selectedShift]);
+
+  // Fetch milk collection list from API for farmer users only
   const {
     data: milkData,
     loading: milkLoading,
     execute: fetchMilk,
   } = useQuery(
     () => {
-      // Use the permissions hook to get the correct API endpoint
       const filterParams = getFarmerFilterParams();
 
-      // Extract farmerId from filterParams if it exists
       let farmerId: string | number = "";
-      if (filterParams && filterParams.includes('farmerId=')) {
+      if (filterParams && filterParams.includes("farmerId=")) {
         const match = filterParams.match(/farmerId=([^&]+)/);
         if (match) {
           farmerId = match[1];
         }
       }
-      // Call the list function with proper parameters
+
       const url = allRoutes.milkCollection.list(
         farmerId,
         undefined,
         undefined,
         selectedShift === "" ? undefined : selectedShift,
-        dairyId != undefined ? dairyId : undefined
+        dairyId != undefined ? dairyId : undefined,
+        getTodayDateString(),
       );
 
       return apiCall(url, "get");
     },
     {
       autoExecute: true,
-    }
+    },
   );
 
   // Collect milk mutation (only for admin/dairy)
@@ -186,12 +397,26 @@ const MilkCollection: React.FC = () => {
     }
   );
 
-  const farmers: Farmer[] = Array.isArray(farmersData?.data)
-    ? farmersData.data
-    : [];
-  const milkEntries: MilkEntry[] = Array.isArray(milkData?.data)
+  const apiMilkEntries: MilkEntry[] = Array.isArray(milkData?.data)
     ? milkData.data
     : [];
+
+  const pendingLocalEntries = localMilkEntries.filter(isUnsyncedEntry);
+
+  const milkEntries: MilkEntry[] = canManageMilk
+    ? isOnline
+      ? [
+          ...pendingLocalEntries.map(mapLocalEntryToMilkEntry),
+          ...apiMilkEntries,
+        ]
+      : pendingLocalEntries.map(mapLocalEntryToMilkEntry)
+    : apiMilkEntries;
+
+  const listLoading = canManageMilk
+    ? isOnline
+      ? milkLoading || localMilkLoading
+      : localMilkLoading
+    : milkLoading;
 
   const resetForm = () => {
     setSelectedFarmer("");
@@ -202,185 +427,172 @@ const MilkCollection: React.FC = () => {
     setDate(new Date().toISOString().split("T")[0]);
   };
 
-  const calculateRate = (fatValue: number, snfValue: number) => {
-    // Get rate settings from localStorage or use defaults
-    const rateSettings = JSON.parse(
-      localStorage.getItem("milkRateSettings") || "{}"
+  const buildMilkPayload = (): MilkCollectionPayload | null => {
+    if (!selectedFarmer || !fat || !snf || !quantity) return null;
+
+    const fatValue = parseFloat(fat);
+    const snfValue = parseFloat(snf);
+    const quantityValue = parseFloat(quantity);
+    const financials = calculateMilkEntryFinancials(
+      fatValue,
+      snfValue,
+      quantityValue,
+      milkRateSettings,
     );
-    const fatRate = parseFloat(rateSettings.fatRate || "2.00");
-    const snfRate = parseFloat(rateSettings.snfRate || "1.00");
-    const formulaType = rateSettings.formulaType || "fatOnly";
 
-    const baseRate = 50; // Base rate per liter
+    return {
+      farmerId: parseInt(selectedFarmer, 10),
+      dairyId: selectedDairyId ?? user?.dairyId ?? undefined,
+      date,
+      shift,
+      quantity: quantityValue,
+      fat: fatValue,
+      fatRate: parseFloat(milkRateSettings.fatRate),
+      snf: snfValue,
+      snfRate: parseFloat(milkRateSettings.snfRate),
+      rate: financials.rate,
+      amount: financials.amount,
+      subsidyDeduction: financials.subsidyDeduction,
+      subsidyAmount: financials.subsidyAmount,
+      totalAmount: financials.totalAmount, 
+    };
+  };
 
-    switch (formulaType) {
-      case "fatOnly":
-        return baseRate + fatValue * fatRate;
-      case "fatSnf":
-        return baseRate + fatValue * fatRate + snfValue * snfRate;
-      default:
-        return baseRate + fatValue * fatRate;
+  const getSelectedFarmerName = () =>
+    farmers.find((farmer) => farmer.id.toString() === selectedFarmer)?.name ??
+    "Unknown Farmer";
+
+  function handleOfflineSaveError(error: unknown) {
+    if (error instanceof DuplicateOfflineMilkEntryError) {
+      const { existingEntry } = error;
+      toast.error(
+        t("milkCollection.duplicateOfflineEntry", {
+          farmer: existingEntry.farmerName,
+          date: formatDisplayDate(existingEntry.date),
+          shift: t(`milkCollection.${existingEntry.shift}`),
+        }),
+      );
+      return;
     }
+
+    console.error("Error saving offline milk entry:", error);
+    toast.error(t("milkCollection.failedToSaveOffline"));
+  }
+
+  const saveMilkEntryOffline = async (payload: MilkCollectionPayload) => {
+    await saveOfflineMilkEntry(payload, getSelectedFarmerName());
+    toast.info(t("milkCollection.savedOffline"));
+    await loadLocalMilkEntries();
+    resetForm();
+  };
+
+  const saveMilkEntryOnline = async (payload: MilkCollectionPayload) => {
+    await collectMilk(payload);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedFarmer || !fat || !snf || !quantity) {
-      return;
-    }
-    setLoading(true);
-    const rate = calculateRate(parseFloat(fat), parseFloat(snf));
-    const totalAmount = rate * parseFloat(quantity);
-
-    const milkData = {
-      farmerId: parseInt(selectedFarmer),
-      date,
-      shift,
-      quantity: parseFloat(quantity),
-      fat: parseFloat(fat),
-      snf: parseFloat(snf),
-      rate,
-      totalAmount,
-    };
+    const milkPayload = buildMilkPayload();
+    if (!milkPayload) return;
 
     if (isEditMode && editingEntry) {
-      await updateMilk({ id: editingEntry.id, updateData: milkData });
-    } else {
-      await collectMilk(milkData);
+      if (!isOnline) {
+        toast.error(t("milkCollection.editRequiresOnline"));
+        return;
+      }
+
+      setLoading(true);
+      await updateMilk({ id: editingEntry.id, updateData: milkPayload });
+      setLoading(false);
+      return;
     }
+
+    setLoading(true);
+
+    if (!isSystemOnline()) {
+      try {
+        await saveMilkEntryOffline(milkPayload);
+      } catch (error) {
+        handleOfflineSaveError(error);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    await saveMilkEntryOnline(milkPayload);
     setLoading(false);
   };
 
   const handleSaveAndPrint = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedFarmer || !fat || !snf || !quantity) {
+    const milkPayload = buildMilkPayload();
+    if (!milkPayload) return;
+
+    if (isEditMode && editingEntry && !isOnline) {
+      toast.error(t("milkCollection.editRequiresOnline"));
       return;
     }
-    setLoading(true);
-    const rate = calculateRate(parseFloat(fat), parseFloat(snf));
-    const totalAmount = rate * parseFloat(quantity);
 
-    const milkData = {
-      farmerId: parseInt(selectedFarmer),
-      date,
-      shift,
-      quantity: parseFloat(quantity),
-      fat: parseFloat(fat),
-      snf: parseFloat(snf),
-      rate,
-      totalAmount,
-    };
+    setLoading(true);
+    const farmerName = getSelectedFarmerName();
+    const isLocalSave = !isEditMode && !isSystemOnline();
 
     try {
       if (isEditMode && editingEntry) {
-        await updateMilk({ id: editingEntry.id, updateData: milkData });
+        await updateMilk({ id: editingEntry.id, updateData: milkPayload });
+      } else if (isLocalSave) {
+        await saveOfflineMilkEntry(milkPayload, farmerName);
+        toast.info(t("milkCollection.savedOffline"));
+        await loadLocalMilkEntries();
       } else {
-        await collectMilk(milkData);
+        await saveMilkEntryOnline(milkPayload);
       }
 
-      // Get farmer name for receipt
-      const selectedFarmerData = farmers.find(f => f.id.toString() === selectedFarmer);
-      const farmerName = selectedFarmerData?.name || "Unknown Farmer";
-
-      // Prepare receipt data
-      const receipt = {
-        address: "Dairy Management System",
-        date: formatDisplayDate(date, ""),
-        items: [{
-          name: `${farmerName}`,
-          price: totalAmount
-        }],
-        total: totalAmount,
-        cash: totalAmount,
-        change: 0,
-        fatRate: parseFloat(fat),
-        quantity: parseFloat(quantity),
-        snfRate: parseFloat(snf)
-      };
+      const milkEntry = buildMilkEntryFromPayload(milkPayload, farmerName, isLocalSave);
+      const receipt = buildReceiptDataFromEntry(milkEntry);
 
       setReceiptData(receipt);
-      setSavedMilkEntry(milkData);
+      setSavedMilkEntry(milkEntry);
       setIsReceiptModalOpen(true);
       resetForm();
     } catch (error) {
-      console.error("Error saving milk entry:", error);
+      handleOfflineSaveError(error);
     } finally {
       setLoading(false);
     }
   };
 
   const handlePrint = () => {
-    if (receiptData) {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Milk Collection Receipt</title>
-              <style>
-                body { font-family: monospace; margin: 20px; }
-                .receipt { width: 300px; margin: 0 auto; }
-                .header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
-                .items { margin: 10px 0; }
-                .totals { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 10px 0; margin: 10px 0; }
-                .footer { text-align: center; margin-top: 10px; }
-                .barcode { height: 50px; background: repeating-linear-gradient(to right, #000 0px, #000 2px, transparent 2px, transparent 4px); }
-              </style>
-            </head>
-            <body>
-              <div class="receipt">
-                <div class="header">
-                  <h2>Receipt</h2>
-                  <p>Address: ${receiptData.address}</p>
-                  <p>Date: ${receiptData.date}</p>
-                </div>
-                <div class="items">
-                  ${receiptData.items.map((item: any) => `
-                    <div style="display: flex; justify-content: space-between; margin: 5px 0;">
-                      <span>${item.name}</span>
-                      <span>₹${item.price.toFixed(2)}</span>
-                    </div>
-                  `).join('')}
-                </div>
-                <div class="totals">
-                 <div style="display: flex; justify-content: space-between;">
-                    <span>Fat Rate</span>
-                    <span>₹${receiptData.fatRate.toFixed(2)}</span>
-                  </div>
-                   <div style="display: flex; justify-content: space-between;">
-                    <span>Quantity</span>
-                    <span>₹${receiptData.quantity.toFixed(2)}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>SNF Rate</span>
-                    <span>₹${receiptData.snfRate.toFixed(2)}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>Total</span>
-                    <span>₹${receiptData.total.toFixed(2)}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>Cash</span>
-                    <span>₹${receiptData.cash.toFixed(2)}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between;">
-                    <span>Change</span>
-                    <span>₹${receiptData.change.toFixed(2)}</span>
-                  </div>
-                </div>
-                <div class="footer">
-                  <p>THANK YOU FOR SHOPPING</p>
-                </div>
-                <div class="barcode"></div>
-              </div>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
+    if (savedMilkEntry) {
+      printMilkEntryReceipt(savedMilkEntry);
+    }
+  };
+
+  const handlePrintEntry = async (entry: MilkEntry) => {
+    const entryKey = entry.localId ?? entry.id;
+    setPrintingEntryId(entryKey);
+
+    try {
+      if (entry.id > 0 && !entry.isLocal && isSystemOnline()) {
+        const receipt = await fetchMilkPrintReceipt(entry.id);
+        if (receipt) {
+          printMilkReceiptDocument(receipt);
+          return;
+        }
+
+        toast.error(t("milkCollection.printReceiptFailed"));
+        return;
       }
+
+      printMilkEntryReceipt(entry);
+    } catch (error) {
+      console.error("Failed to print milk receipt:", error);
+      toast.error(t("milkCollection.printReceiptFailed"));
+    } finally {
+      setPrintingEntryId(null);
     }
   };
 
@@ -428,8 +640,47 @@ const MilkCollection: React.FC = () => {
       : 0;
 
   useEffect(() => {
-    fetchMilk();
-  }, [selectedShift]);
+    if (!canManageMilk || !isOnline || isSyncingOfflineRef.current) return;
+
+    let active = true;
+    isSyncingOfflineRef.current = true;
+
+    async function syncPendingEntries() {
+      try {
+        const { synced, failed, message } = await syncOfflineMilkEntries();
+        if (!active) return;
+
+        await loadLocalMilkEntries();
+
+        if (synced > 0) {
+          toast.success(message ?? t("dashboard.offlineMilkEntriesSynced", { count: synced }));
+          fetchMilk();
+        }
+
+        if (failed > 0) {
+          toast.error(
+            t("dashboard.offlineMilkEntriesSyncFailed", { count: failed }),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to sync offline milk entries:", error);
+      } finally {
+        isSyncingOfflineRef.current = false;
+      }
+    }
+
+    syncPendingEntries();
+
+    return () => {
+      active = false;
+    };
+  }, [canManageMilk, isOnline]);
+
+  useEffect(() => {
+    if (isOnline) {
+      fetchMilk();
+    }
+  }, [selectedShift, isOnline]);
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -645,17 +896,18 @@ const MilkCollection: React.FC = () => {
             <div className="flex justify-between items-center gap-2">
               {isFarmerUser
                 ? t("milkCollection.myCollectionList")
-                : t("milkCollection.dailyList")}
+                : t("milkCollection.todaysCollection")}
               <Select
-                value={selectedShift}
-                onValueChange={(value: "morning" | "evening") =>
-                  setSelectedShift(value)
+                value={selectedShift || "all"}
+                onValueChange={(value) =>
+                  setSelectedShift(value === "all" ? "" : (value as "morning" | "evening"))
                 }
               >
                 <SelectTrigger className="w-46">
                   <SelectValue placeholder={t("milkCollection.selectShift")} />
                 </SelectTrigger>
-                <SelectContent> 
+                <SelectContent>
+                  <SelectItem value="all">{t("milkCollection.allShifts")}</SelectItem>
                   <SelectItem value="morning">{t("milkCollection.morning")}</SelectItem>
                   <SelectItem value="evening">{t("milkCollection.evening")}</SelectItem>
                 </SelectContent>
@@ -664,7 +916,7 @@ const MilkCollection: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {milkLoading ? (
+          {listLoading ? (
             <div className="text-center py-4">{t("common.loading")}</div>
           ) : milkEntries.length === 0 ? (
             <div className="text-center py-4 text-muted-foreground">
@@ -685,7 +937,9 @@ const MilkCollection: React.FC = () => {
                   <TableHead>{t("milkCollection.snf")} </TableHead>
                   <TableHead>{t("milkCollection.quantity")} </TableHead>
                   <TableHead>{t("milkCollection.rate")} </TableHead>
-                  <TableHead>{t("milkCollection.totalAmount")} (₹)</TableHead>
+                  <TableHead>{t("milkCollection.total")} </TableHead>
+                  <TableHead>{t("milkCollection.subsidyDeductionAmount")} </TableHead>
+                  <TableHead>{t("milkCollection.netAmount")} (₹)</TableHead>
                   {canManageMilk && (
                     <TableHead>{t("common.actions")}</TableHead>
                   )}
@@ -693,7 +947,7 @@ const MilkCollection: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {milkEntries.map((entry) => (
-                  <TableRow key={entry.id}>
+                  <TableRow key={entry.localId ?? entry.id}>
                     {!isFarmerUser && (
                       <TableCell>{entry.farmer?.name || "N/A"}</TableCell>
                     )}
@@ -736,19 +990,45 @@ const MilkCollection: React.FC = () => {
                     <TableCell>
                       ₹
                       {(
+                        parseFloat(entry.amount?.toString() || "0") || 0
+                      ).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                     - ₹
+                      {(
+                        parseFloat(entry.subsidyAmount?.toString() || "0") || 0
+                      ).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      ₹
+                      {(
                         parseFloat(entry.totalAmount?.toString() || "0") || 0
                       ).toFixed(2)}
                     </TableCell>
                     {canManageMilk && (
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(entry)}
-                          disabled={isEditMode}
-                        >
-                          {t("common.edit")}
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePrintEntry(entry)}
+                            disabled={printingEntryId === (entry.localId ?? entry.id)}
+                          >
+                            {printingEntryId === (entry.localId ?? entry.id)
+                              ? t("common.loading")
+                              : t("common.print")}
+                          </Button>
+                          {!entry.isLocal && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(entry)}
+                              disabled={isEditMode}
+                            >
+                              {t("common.edit")}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -766,19 +1046,7 @@ const MilkCollection: React.FC = () => {
             <DialogTitle>{t("milkCollection.receipt")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {receiptData && (
-              <Receipt
-                address={receiptData.address}
-                date={receiptData.date}
-                items={receiptData.items}
-                total={receiptData.total}
-                cash={receiptData.total}
-                change={receiptData.change}
-                fatRate={receiptData.fatRate}
-                quantity={receiptData.quantity}
-                snfRate={receiptData.snfRate}
-              />
-            )}
+            {receiptData && <Receipt receipt={receiptData} />}
             <div className="flex justify-center space-x-2">
               <Button onClick={handlePrint} variant="outline">
                 {t("common.print")}

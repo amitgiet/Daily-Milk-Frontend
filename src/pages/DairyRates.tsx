@@ -9,6 +9,9 @@ import { Badge } from '../components/ui/badge';
 import { useQuery, useMutation } from '../hooks/useApi';
 import { apiCall } from '../lib/apiCall';
 import { allRoutes } from '../lib/apiRoutes';
+import {
+  syncMilkRateSettingsFromApiResponse,
+} from '../lib/milkRateStorage';
 
 interface DairyRates {
   fatRate: number;
@@ -25,14 +28,22 @@ const DairyRates: React.FC = () => {
   // Fetch current rates
   const { data: ratesData, loading: ratesLoading, execute: fetchRates } = useQuery(
     () => apiCall(allRoutes.dairy.rates, 'get'),
-    { autoExecute: true }
+    {
+      autoExecute: true,
+      onSuccess: (data) => {
+        syncMilkRateSettingsFromApiResponse(data).catch((error) => {
+          console.error('Failed to sync milk rate settings to IndexedDB:', error);
+        });
+      },
+    }
   );
 
   // Update rates mutation
   const { execute: updateRates, loading: updatingRates } = useMutation(
     (data: DairyRates) => apiCall(allRoutes.dairy.updateRates, 'post', data),
     {
-      onSuccess: () => {
+      onSuccess: async (response) => {
+        await syncMilkRateSettingsFromApiResponse(response);
         fetchRates();
         resetForm();
       }

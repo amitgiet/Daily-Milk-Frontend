@@ -25,12 +25,14 @@ export const allRoutes = {
   },
   milkCollection: {
     collect: "/admin/milk/collect",
+    syncOfflineData: "/admin/milk/sync-offline-data",
     list: (
       farmerId: string | number = "",
       startDate?: string,
       endDate?: string,
       shift?: string,
       dairyId?: string | number,
+      today?: string,
     ) => {
       let url = "/admin/milk/list";
       const params: string[] = [];
@@ -49,6 +51,10 @@ export const allRoutes = {
         params.push(`dairyId=${dairyId}`);
       }
 
+      if (today) {
+        params.push(`today=${today}`);
+      }
+
       if (params.length > 0) {
         url += "?" + params.join("&");
       }
@@ -56,6 +62,7 @@ export const allRoutes = {
       return url;
     },
     get: (id: string | number) => `/admin/milk/${id}`,
+    printReceipt: (id: string | number) => `/admin/milk/print-receipt/${id}`,
     update: (id: string | number) => `/admin/milk/${id}`,
     delete: (id: string | number) => `/admin/milk/${id}`,
     getUnpaidMilkCollections: (farmerId: string | number) =>

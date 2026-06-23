@@ -21,7 +21,7 @@ import { useQuery } from "@/hooks/useApi";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { DashboardStats } from "@/types/dashboard";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 
 export default function Dashboard() {

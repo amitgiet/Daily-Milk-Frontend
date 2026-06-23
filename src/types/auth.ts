@@ -6,6 +6,7 @@ export interface ProfileSubscriptionPlan {
 
 export interface ProfileSubscription {
   id: number;
+  dairyId?: number;
   planId: number;
   startDate: string;
   endDate: string;
@@ -64,9 +65,9 @@ export interface DairySubscription {
 
 export interface LoginResponse {
   accessToken: string;
-  user: User;
+  user: User & { subscription?: ProfileSubscription | null };
   message?: string;
-  subscription?: boolean;
+  subscription?: boolean | ProfileSubscription | null;
   DairySubscription?: DairySubscription;
 }
 

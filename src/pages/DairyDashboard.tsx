@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -62,6 +62,18 @@ import {
   PayFarmerDialog,
   type PayFarmerInfo,
 } from "@/components/payments/PayFarmerDialog";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import {
+  aggregateLocalMilkEntriesByFarmer,
+  getOfflineMilkEntries,
+  getTodayDateString,
+  isUnsyncedEntry,
+  OFFLINE_MILK_ENTRIES_UPDATED_EVENT,
+  syncOfflineMilkEntries,
+  type OfflineMilkEntry,
+} from "@/lib/milkCollectionStorage";
+import { formatDisplayDate } from "@/lib/dateFormat";
+import { toast } from "react-toastify";
 
 interface MilkEntry {
   date: string;
@@ -220,6 +232,46 @@ function buildTodayFarmerList(entries: FarmerMilkCollectionEntry[]) {
   }));
 }
 
+interface TodayMilkCollectionItem {
+  supplier: string;
+  morning: number;
+  evening: number;
+  total: number;
+  farmerId?: number;
+}
+
+function mergeTodayMilkCollectionLists(
+  apiList: TodayMilkCollectionItem[],
+  localList: TodayMilkCollectionItem[],
+): TodayMilkCollectionItem[] {
+  const byFarmerId = new Map<number, TodayMilkCollectionItem>();
+
+  for (const item of apiList) {
+    if (item.farmerId != null) {
+      byFarmerId.set(item.farmerId, { ...item });
+    }
+  }
+
+  for (const local of localList) {
+    if (local.farmerId == null) continue;
+
+    const existing = byFarmerId.get(local.farmerId);
+    if (existing) {
+      byFarmerId.set(local.farmerId, {
+        ...existing,
+        morning: Math.round((existing.morning + local.morning) * 10) / 10,
+        evening: Math.round((existing.evening + local.evening) * 10) / 10,
+        total: Math.round((existing.total + local.total) * 10) / 10,
+      });
+      continue;
+    }
+
+    byFarmerId.set(local.farmerId, local);
+  }
+
+  return Array.from(byFarmerId.values()).sort((a, b) => b.total - a.total);
+}
+
 function buildFarmerCollectionChartData(
   entries: FarmerMilkCollectionEntry[],
 ): FarmerShiftChartPoint[] {
@@ -275,13 +327,52 @@ function createShiftChartConfig(
 export default function DairyDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isOnline = useNetworkStatus();
   const weeklyGradientId = useId().replace(/:/g, "");
+  const isSyncingOfflineRef = useRef(false);
   const [shiftPeriodType, setShiftPeriodType] = useState<PeriodType>("today");
   const [farmerPeriodType, setFarmerPeriodType] = useState<PeriodType>("today");
   const [showPayFarmerDialog, setShowPayFarmerDialog] = useState(false);
   const [selectedPayFarmer, setSelectedPayFarmer] = useState<PayFarmerInfo | null>(
     null,
   );
+  const [pendingOfflineEntries, setPendingOfflineEntries] = useState<OfflineMilkEntry[]>(
+    [],
+  );
+  const [pendingOfflineLoading, setPendingOfflineLoading] = useState(true);
+  const [isSyncingSavedEntries, setIsSyncingSavedEntries] = useState(false);
+
+  const loadPendingOfflineEntries = async () => {
+    setPendingOfflineLoading(true);
+    try {
+      const entries = await getOfflineMilkEntries();
+      setPendingOfflineEntries(entries.filter(isUnsyncedEntry));
+    } catch (error) {
+      console.error("Failed to load pending offline milk entries:", error);
+    } finally {
+      setPendingOfflineLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPendingOfflineEntries();
+
+    function handleOfflineEntriesUpdated() {
+      loadPendingOfflineEntries();
+    }
+
+    window.addEventListener(
+      OFFLINE_MILK_ENTRIES_UPDATED_EVENT,
+      handleOfflineEntriesUpdated,
+    );
+
+    return () => {
+      window.removeEventListener(
+        OFFLINE_MILK_ENTRIES_UPDATED_EVENT,
+        handleOfflineEntriesUpdated,
+      );
+    };
+  }, []);
 
   const weeklyChartConfig = useMemo<ChartConfig>(
     () => ({
@@ -348,7 +439,7 @@ export default function DairyDashboard() {
     execute: fetchWeeklyMilk,
   } = useQuery(
     () => apiCall(allRoutes.milkCollection.list("", startDate, endDate), "get"),
-    { autoExecute: true },
+    { autoExecute: false },
   );
 
   const {
@@ -358,7 +449,7 @@ export default function DairyDashboard() {
     execute: fetchMilkProgressReport,
   } = useQuery(
     () => apiCall(allRoutes.dashboard.milkProgressPrevious12Months, "get"),
-    { autoExecute: true },
+    { autoExecute: false },
   );
 
   const {
@@ -369,7 +460,7 @@ export default function DairyDashboard() {
   } = useQuery(
     () =>
       apiCall(allRoutes.dashboard.monthlyFarmerMilkCollections("today"), "get"),
-    { autoExecute: true },
+    { autoExecute: false },
   );
 
   const {
@@ -415,8 +506,75 @@ export default function DairyDashboard() {
     execute: fetchPendingFarmers,
   } = useQuery(
     () => apiCall(allRoutes.dashboard.farmersWithPendingPayments, "get"),
-    { autoExecute: true },
+    { autoExecute: false },
   );
+
+  useEffect(() => {
+    if (statsLoading || !dashboardStats) return;
+
+    const statsPayload = dashboardStats?.data?.data as DashboardStats | undefined;
+    const hasWeeklyFromStats =
+      Array.isArray(statsPayload?.weeklyMilkCollection) &&
+      statsPayload.weeklyMilkCollection.length > 0;
+
+    if (!hasWeeklyFromStats) {
+      fetchWeeklyMilk();
+    }
+
+    const progressTimer = window.setTimeout(() => {
+      fetchMilkProgressReport();
+    }, 150);
+
+    const pendingTimer = window.setTimeout(() => {
+      fetchPendingFarmers();
+    }, 300);
+
+    const todayFarmerTimer = window.setTimeout(() => {
+      fetchTodayFarmerList();
+    }, 50);
+
+    return () => {
+      window.clearTimeout(progressTimer);
+      window.clearTimeout(pendingTimer);
+      window.clearTimeout(todayFarmerTimer);
+    };
+  }, [statsLoading, dashboardStats]);
+
+  useEffect(() => {
+    if (!isOnline || isSyncingOfflineRef.current) return;
+
+    let active = true;
+    isSyncingOfflineRef.current = true;
+
+    async function syncPendingEntries() {
+      try {
+        const { synced, failed, message } = await syncOfflineMilkEntries();
+        if (!active) return;
+
+        await loadPendingOfflineEntries();
+
+        if (synced > 0) {
+          toast.success(message ?? t("dashboard.offlineMilkEntriesSynced", { count: synced }));
+          fetchTodayFarmerList();
+          fetchStats();
+        }
+
+        if (failed > 0) {
+          toast.error(t("dashboard.offlineMilkEntriesSyncFailed", { count: failed }));
+        }
+      } catch (error) {
+        console.error("Failed to sync offline milk entries:", error);
+      } finally {
+        isSyncingOfflineRef.current = false;
+      }
+    }
+
+    syncPendingEntries();
+
+    return () => {
+      active = false;
+    };
+  }, [isOnline, t]);
 
   const stats: DashboardStats = dashboardStats?.data?.data || {};
   const milkEntries: MilkEntry[] =
@@ -451,10 +609,25 @@ export default function DairyDashboard() {
     [farmerCollectionEntries],
   );
 
-  const todayMilkCollectionList = useMemo(
+  const apiTodayMilkList = useMemo(
     () => buildTodayFarmerList(todayFarmerListEntries ?? []),
     [todayFarmerListEntries],
   );
+
+  const localTodayMilkList = useMemo(
+    () =>
+      aggregateLocalMilkEntriesByFarmer(
+        pendingOfflineEntries.filter((entry) => entry.date === getTodayDateString()),
+      ),
+    [pendingOfflineEntries],
+  );
+
+  const todayMilkCollectionList = useMemo(
+    () => mergeTodayMilkCollectionLists(apiTodayMilkList, localTodayMilkList),
+    [apiTodayMilkList, localTodayMilkList],
+  );
+
+  const hasTodayLocalMilkData = localTodayMilkList.length > 0;
 
   const shiftChartData = useMemo(
     () =>
@@ -477,6 +650,7 @@ export default function DairyDashboard() {
   );
 
   const handleRefresh = () => {
+    loadPendingOfflineEntries();
     fetchStats();
     fetchWeeklyMilk();
     fetchMilkProgressReport();
@@ -484,6 +658,33 @@ export default function DairyDashboard() {
     fetchFarmerCollections();
     fetchTodayShiftMilkCollections();
     fetchPendingFarmers();
+  };
+
+  const handleSyncSavedMilkEntries = async () => {
+    if (!isOnline) return;
+
+    setIsSyncingSavedEntries(true);
+    try {
+      const { synced, failed, message } = await syncOfflineMilkEntries();
+      await loadPendingOfflineEntries();
+
+      if (synced > 0) {
+        toast.success(message ?? t("dashboard.offlineMilkEntriesSynced", { count: synced }));
+        fetchTodayFarmerList();
+        fetchStats();
+      } else if (failed === 0) {
+        toast.info(t("dashboard.noOfflineMilkEntriesToSync"));
+      }
+
+      if (failed > 0) {
+        toast.error(t("dashboard.offlineMilkEntriesSyncFailed", { count: failed }));
+      }
+    } catch (error) {
+      console.error("Failed to sync saved milk entries:", error);
+      toast.error(t("dashboard.offlineMilkEntriesSyncFailed", { count: 1 }));
+    } finally {
+      setIsSyncingSavedEntries(false);
+    }
   };
 
   const formatCurrency = (amount?: number) => {
@@ -518,6 +719,98 @@ export default function DairyDashboard() {
         <Card className="border-destructive/30 bg-destructive/5">
           <CardContent className="p-4 text-sm text-destructive">
             Failed to load dashboard statistics.
+          </CardContent>
+        </Card>
+      )}
+
+      {pendingOfflineEntries.length > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Milk className="h-4 w-4 text-amber-600" />
+                  {t("dashboard.savedMilkEntries")}
+                  <Badge variant="secondary">{pendingOfflineEntries.length}</Badge>
+                </CardTitle>
+                <CardDescription>
+                  {!isOnline
+                    ? t("dashboard.savedMilkEntriesOfflineDescription")
+                    : t("dashboard.savedMilkEntriesDescription")}
+                </CardDescription>
+              </div>
+              {isOnline && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSyncSavedMilkEntries}
+                  disabled={isSyncingSavedEntries}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 mr-2 ${isSyncingSavedEntries ? "animate-spin" : ""}`}
+                  />
+                  {t("dashboard.syncSavedMilkEntries")}
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {pendingOfflineLoading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                {t("common.loading")}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("milkCollection.farmerNameColumn")}</TableHead>
+                    <TableHead>{t("milkCollection.date")}</TableHead>
+                    <TableHead>{t("milkCollection.shift")}</TableHead>
+                    <TableHead>{t("milkCollection.quantityColumn")}</TableHead>
+                    <TableHead>{t("milkCollection.fat")}</TableHead>
+                    <TableHead>{t("milkCollection.snf")}</TableHead>
+                    <TableHead>{t("milkCollection.rateColumn")}</TableHead>
+                    <TableHead>{t("milkCollection.totalAmount")}</TableHead>
+                    <TableHead>{t("milkCollection.subsidyDeductionAmount")}</TableHead>
+                     
+                    <TableHead>{t("milkCollection.netAmount")}</TableHead>
+                    <TableHead>{t("dashboard.status")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingOfflineEntries.map((entry) => (
+                    <TableRow key={entry.localId}>
+                      <TableCell className="font-medium">{entry.farmerName}</TableCell>
+                      <TableCell>{formatDisplayDate(entry.date)}</TableCell>
+                      <TableCell>
+                        {entry.shift === "morning"
+                          ? t("dashboard.morning")
+                          : t("dashboard.evening")}
+                      </TableCell>
+                      <TableCell>{entry.quantity}L</TableCell>
+                      <TableCell>{entry.fat}%</TableCell>
+                      <TableCell>{entry.snf}%</TableCell>
+                      <TableCell>₹{entry.rate.toFixed(2)}</TableCell>
+                      <TableCell>₹{entry.amount.toFixed(2)}</TableCell>
+                      
+                      <TableCell>₹{entry.subsidyAmount.toFixed(2)}</TableCell>
+                      <TableCell>₹{entry.totalAmount.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            entry.syncStatus === "failed" ? "destructive" : "secondary"
+                          }
+                        >
+                          {entry.syncStatus === "failed"
+                            ? t("dashboard.syncFailed")
+                            : t("dashboard.pendingSync")}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1010,15 +1303,17 @@ export default function DairyDashboard() {
             {t("dashboard.todaysMilkCollection")}
           </CardTitle>
           <CardDescription className="text-xs">
-            {t("dashboard.milkCollectionDescription")}
+            {hasTodayLocalMilkData
+              ? t("dashboard.localMilkCollectionDescription")
+              : t("dashboard.milkCollectionDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 pb-0">
-          {todayFarmerListLoading ? (
+          {todayFarmerListLoading && !hasTodayLocalMilkData && isOnline ? (
             <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">
               {t("common.loading")}
             </div>
-          ) : todayFarmerListError ? (
+          ) : todayFarmerListError && !hasTodayLocalMilkData && isOnline ? (
             <div className="h-[220px] flex items-center justify-center text-sm text-destructive">
               {t("common.error")}
             </div>

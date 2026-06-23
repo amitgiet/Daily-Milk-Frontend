@@ -47,6 +47,9 @@ export function NetworkStatusNotifier() {
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      if (!isOnline) {
+        toast.error(t("common.noInternet"));
+      }
       return;
     }
 
@@ -59,4 +62,20 @@ export function NetworkStatusNotifier() {
   }, [isOnline, t]);
 
   return null;
+}
+
+export function OfflineBanner() {
+  const { t } = useTranslation();
+  const isOnline = useNetworkStatus();
+
+  if (isOnline) return null;
+
+  return (
+    <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-2.5 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-center gap-2 text-sm font-medium text-destructive">
+        <WifiOff className="h-4 w-4 shrink-0" />
+        <span>{t("common.offlineMode")}</span>
+      </div>
+    </div>
+  );
 }
