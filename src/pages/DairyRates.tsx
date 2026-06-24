@@ -154,7 +154,7 @@ const DairyRates: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="formulaType">{t('dairyRates.formulaType')}</Label>
                 <Select value={formulaType} onValueChange={(value: 'fatOnly' | 'fatAndSnf') => setFormulaType(value)}>
-                  <SelectTrigger>
+                  <SelectTrigger id="formulaType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

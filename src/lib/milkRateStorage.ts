@@ -9,6 +9,8 @@ export interface MilkRateSettingsRecord {
   fatRate: string;
   snfRate: string;
   govtSubsidy: string;
+  fixClrBuff: string;
+  fixSnfBuff: string;
   formulaType: "fatOnly" | "fatSnf";
 }
 
@@ -16,6 +18,8 @@ interface MilkRateSettingsApiPayload {
   fatRate?: number | string;
   snfRate?: number | string;
   govtSubsidy?: number | string;
+  fixClrBuff?: number | string;
+  fixSnfBuff?: number | string;
   formulaType?: string;
 }
 
@@ -27,6 +31,8 @@ export const DEFAULT_MILK_RATE_SETTINGS: MilkRateSettingsRecord = {
   fatRate: "2.00",
   snfRate: "1.00",
   govtSubsidy: "0.00",
+  fixClrBuff: "28",
+  fixSnfBuff: "8.5",
   formulaType: "fatOnly",
 };
 
@@ -46,6 +52,10 @@ function parseLegacySettings(raw: string): MilkRateSettingsRecord | null {
       snfRate: settings.snfRate?.toString() || DEFAULT_MILK_RATE_SETTINGS.snfRate,
       govtSubsidy:
         settings.govtSubsidy?.toString() || DEFAULT_MILK_RATE_SETTINGS.govtSubsidy,
+      fixClrBuff:
+        settings.fixClrBuff?.toString() || DEFAULT_MILK_RATE_SETTINGS.fixClrBuff,
+      fixSnfBuff:
+        settings.fixSnfBuff?.toString() || DEFAULT_MILK_RATE_SETTINGS.fixSnfBuff,
       formulaType: settings.formulaType || DEFAULT_MILK_RATE_SETTINGS.formulaType,
     };
   } catch {
@@ -149,6 +159,10 @@ export function normalizeMilkRateSettings(
     snfRate: payload.snfRate?.toString() || DEFAULT_MILK_RATE_SETTINGS.snfRate,
     govtSubsidy:
       payload.govtSubsidy?.toString() || DEFAULT_MILK_RATE_SETTINGS.govtSubsidy,
+    fixClrBuff:
+      payload.fixClrBuff?.toString() || DEFAULT_MILK_RATE_SETTINGS.fixClrBuff,
+    fixSnfBuff:
+      payload.fixSnfBuff?.toString() || DEFAULT_MILK_RATE_SETTINGS.fixSnfBuff,
     formulaType: normalizeFormulaType(payload.formulaType),
   };
 }
@@ -193,6 +207,8 @@ export async function updateAndSyncMilkRateSettings(
       fatRate: parseFloat(settings.fatRate),
       snfRate: parseFloat(settings.snfRate),
       govtSubsidy: parseFloat(settings.govtSubsidy),
+      fixClrBuff: parseFloat(settings.fixClrBuff),
+      fixSnfBuff: parseFloat(settings.fixSnfBuff),
       formulaType: settings.formulaType,
     });
 
@@ -223,6 +239,10 @@ export function calculateMilkRateFromSettings(
   }
 
   return fatValue * fatRate;
+}
+
+export function calculateSNF(fat: number, clr: number) {
+  return Number(((clr / 4) + 0.21 * fat + 0.36).toFixed(2));
 }
 
 export interface MilkEntryFinancials {

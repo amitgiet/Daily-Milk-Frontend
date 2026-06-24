@@ -22,6 +22,7 @@ import Settings from "./pages/Settings";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import AdminSubscriptionPlans from "./pages/AdminSubscriptionPlans";
 import DairyListing from "./pages/DairyListing";
+import DairyView from "./pages/DairyView";
 import FarmerListing from "./pages/FarmerListing";
 import DairyReports from "./pages/DairyReports";
 import DairySubscriptions from "./pages/DairySubscriptions";
@@ -82,6 +83,7 @@ const App = () => (
                 element={<PurchasedSubscriptions />}
               />
               <Route path="dairy-listing" element={<DairyListing />} />
+              <Route path="dairy-listing/:id" element={<DairyView />} />
               <Route path="farmer-listing" element={<FarmerListing />} />
               <Route
                 path="admin-subscription-plans"

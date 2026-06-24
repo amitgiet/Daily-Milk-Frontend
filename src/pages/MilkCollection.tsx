@@ -50,6 +50,7 @@ import {
 } from "@/lib/farmerStorage";
 import {
   calculateMilkEntryFinancials,
+  calculateSNF,
   DEFAULT_MILK_RATE_SETTINGS,
   fetchAndSyncMilkRateSettings,
   getMilkRateSettings,
@@ -63,8 +64,10 @@ import {
   OFFLINE_MILK_ENTRIES_UPDATED_EVENT,
   saveOfflineMilkEntry,
   syncOfflineMilkEntries,
+  updateMilkCollectionEntry,
   DuplicateOfflineMilkEntryError,
   type MilkCollectionPayload,
+  type MilkCollectionUpdatePayload,
   type OfflineMilkEntry,
 } from "@/lib/milkCollectionStorage";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -232,9 +235,13 @@ const MilkCollection: React.FC = () => {
   } = usePermissions();
   const [selectedFarmer, setSelectedFarmer] = useState<string>("");
   const [fat, setFat] = useState<string>("");
-  const [snf, setSnf] = useState<string>("");
+  const [snf, setSnf] = useState(DEFAULT_MILK_RATE_SETTINGS.fixSnfBuff);
   const [loading, setLoading] = useState(false);
   const [quantity, setQuantity] = useState<string>("");
+  const [clr, setClr] = useState(DEFAULT_MILK_RATE_SETTINGS.fixClrBuff);
+  // const [water, setWater] = useState<string>("");
+  // const [protein, setProtein] = useState<string>("");
+  // const [lactose, setLactose] = useState<string>("");
   const [shift, setShift] = useState<"morning" | "evening">(() => getDefaultShift());
   const [selectedShift, setSelectedShift] = useState<"morning" | "evening" | "">("");
   const [date, setDate] = useState<string>(
@@ -252,6 +259,8 @@ const MilkCollection: React.FC = () => {
   const [localMilkEntries, setLocalMilkEntries] = useState<OfflineMilkEntry[]>([]);
   const [localMilkLoading, setLocalMilkLoading] = useState(false);
   const isSyncingOfflineRef = useRef(false);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
+  const fatInputRef = useRef<HTMLInputElement>(null);
   const [printingEntryId, setPrintingEntryId] = useState<number | string | null>(
     null,
   );
@@ -283,6 +292,10 @@ const MilkCollection: React.FC = () => {
         console.error("Failed to sync milk rate settings:", error);
       });
   }, []);
+
+  useEffect(() => {
+    setClr(milkRateSettings.fixClrBuff);
+  }, [milkRateSettings.fixClrBuff]);
 
   useEffect(() => {
     if (!canManageMilk) return;
@@ -385,10 +398,11 @@ const MilkCollection: React.FC = () => {
 
   // Update milk entry mutation (only for admin/dairy)
   const { execute: updateMilk, loading: updatingMilk } = useMutation(
-    (data: { id: number; updateData: Record<string, unknown> }) =>
-      apiCall(allRoutes.milkCollection.update(data.id), "put", data.updateData),
+    (data: { id: number; updateData: MilkCollectionUpdatePayload }) =>
+      updateMilkCollectionEntry(data.id, data.updateData),
     {
       onSuccess: () => {
+        toast.success(t("milkCollection.entryUpdatedSuccess"));
         fetchMilk();
         resetForm();
         setIsEditMode(false);
@@ -421,8 +435,12 @@ const MilkCollection: React.FC = () => {
   const resetForm = () => {
     setSelectedFarmer("");
     setFat("");
-    setSnf("");
+    setSnf(milkRateSettings.fixSnfBuff);
     setQuantity("");
+    setClr(milkRateSettings.fixClrBuff);
+    // setWater("");
+    // setProtein("");
+    // setLactose("");
     setShift(getDefaultShift());
     setDate(new Date().toISOString().split("T")[0]);
   };
@@ -458,6 +476,28 @@ const MilkCollection: React.FC = () => {
     };
   };
 
+  const buildMilkUpdatePayload = (): MilkCollectionUpdatePayload | null => {
+    if (!fat || !snf || !quantity) return null;
+
+    const fatValue = parseFloat(fat);
+    const snfValue = parseFloat(snf);
+    const quantityValue = parseFloat(quantity);
+
+    if (
+      Number.isNaN(fatValue) ||
+      Number.isNaN(snfValue) ||
+      Number.isNaN(quantityValue)
+    ) {
+      return null;
+    }
+
+    return {
+      quantity: quantityValue,
+      fat: fatValue,
+      snf: snfValue,
+    };
+  };
+
   const getSelectedFarmerName = () =>
     farmers.find((farmer) => farmer.id.toString() === selectedFarmer)?.name ??
     "Unknown Farmer";
@@ -479,50 +519,54 @@ const MilkCollection: React.FC = () => {
     toast.error(t("milkCollection.failedToSaveOffline"));
   }
 
-  const saveMilkEntryOffline = async (payload: MilkCollectionPayload) => {
-    await saveOfflineMilkEntry(payload, getSelectedFarmerName());
-    toast.info(t("milkCollection.savedOffline"));
-    await loadLocalMilkEntries();
-    resetForm();
-  };
-
   const saveMilkEntryOnline = async (payload: MilkCollectionPayload) => {
     await collectMilk(payload);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFormEnterKey = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+
+    const target = e.target as HTMLElement;
+    if (target.id === "fat") return;
+    if (target.closest("[cmdk-input-wrapper]")) return;
+    if (target.closest("[data-radix-popper-content-wrapper]")) return;
+    if (
+      target.tagName === "BUTTON" &&
+      (target as HTMLButtonElement).type === "button"
+    ) {
+      return;
+    }
+
     e.preventDefault();
+    e.currentTarget.requestSubmit();
+  };
 
-    const milkPayload = buildMilkPayload();
-    if (!milkPayload) return;
+  const resolveClrValue = (clrInput?: string) => {
+    const source = clrInput ?? clr;
+    const parsedClr = parseFloat(source);
+    if (!Number.isNaN(parsedClr)) return parsedClr;
+    return parseFloat(milkRateSettings.fixClrBuff) || 0;
+  };
 
-    if (isEditMode && editingEntry) {
-      if (!isOnline) {
-        toast.error(t("milkCollection.editRequiresOnline"));
-        return;
-      }
+  const applySnfFromFat = (fatInput: string, clrInput?: string) => {
+    const normalizedFat = fatInput.trim().replace(",", ".");
+    const fatValue = parseFloat(normalizedFat);
+    if (Number.isNaN(fatValue)) return;
+    setSnf(calculateSNF(fatValue, resolveClrValue(clrInput)).toString());
+  };
 
-      setLoading(true);
-      await updateMilk({ id: editingEntry.id, updateData: milkPayload });
-      setLoading(false);
-      return;
-    }
+  const handleFatBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    applySnfFromFat(e.target.value);
+  };
 
-    setLoading(true);
+  const handleFatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
 
-    if (!isSystemOnline()) {
-      try {
-        await saveMilkEntryOffline(milkPayload);
-      } catch (error) {
-        handleOfflineSaveError(error);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    await saveMilkEntryOnline(milkPayload);
-    setLoading(false);
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.blur();
+    window.setTimeout(() => quantityInputRef.current?.focus(), 0);
   };
 
   const handleSaveAndPrint = async (e: React.FormEvent) => {
@@ -542,7 +586,14 @@ const MilkCollection: React.FC = () => {
 
     try {
       if (isEditMode && editingEntry) {
-        await updateMilk({ id: editingEntry.id, updateData: milkPayload });
+        const updatePayload = buildMilkUpdatePayload();
+        if (!updatePayload) return;
+
+        const updated = await updateMilk({
+          id: editingEntry.id,
+          updateData: updatePayload,
+        });
+        if (!updated) return;
       } else if (isLocalSave) {
         await saveOfflineMilkEntry(milkPayload, farmerName);
         toast.info(t("milkCollection.savedOffline"));
@@ -699,20 +750,23 @@ const MilkCollection: React.FC = () => {
       {/* Milk Entry Form - Only show for admin/dairy users */}
       {canManageMilk && (
         <Card>
-          <form onSubmit={handleSubmit}>
-            <CardHeader className="pb-3">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <form onSubmit={handleSaveAndPrint} onKeyDown={handleFormEnterKey} autoComplete="off">
+            <CardHeader className="border-b border-border pb-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <CardTitle className="text-lg font-semibold">
                   {isEditMode
                     ? t("milkCollection.editEntry")
                     : t("milkCollection.addEntry")}
                 </CardTitle>
-                <div className="flex flex-row flex-nowrap items-end gap-3 shrink-0">
-                  <div className="min-w-[140px] space-y-2">
+                <div className="flex flex-row flex-nowrap items-center gap-2 shrink-0">
+                  <div className="w-[118px]">
                     {/* <Label htmlFor="date">{t("milkCollection.date")}</Label> */}
                     <DateInput
                       id="date"
-                      className="w-full"
+                      name="date"
+                      tabIndex={-1}
+                      className="h-8 [&_button]:h-8 [&_button]:w-7 [&_svg]:h-3.5 [&_svg]:w-3.5"
+                      inputClassName="h-8 py-0 px-2 text-sm"
                       value={date}
                       onChange={(newDate) => {
                         setDate(newDate);
@@ -726,15 +780,20 @@ const MilkCollection: React.FC = () => {
                       required
                     />
                   </div>
-                  <div className="min-w-[130px] space-y-2">
+                  <div className="w-[108px]">
                    {/*  <Label htmlFor="shift">{t("milkCollection.shift")}</Label> */}
                     <Select
+                      name="shift"
                       value={shift}
                       onValueChange={(value: "morning" | "evening") =>
                         setShift(value)
                       }
                     >
-                      <SelectTrigger id="shift" className="w-full">
+                      <SelectTrigger
+                        id="shift"
+                        tabIndex={-1}
+                        className="h-8 w-full px-2 text-sm"
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -750,53 +809,57 @@ const MilkCollection: React.FC = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-row flex-nowrap items-end gap-3 overflow-x-auto pb-1">
-                <div className="min-w-[210px] flex-1 space-y-2">
+            <CardContent className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-6 md:grid-cols-12 gap-4 items-end">
+                <div className="space-y-2 sm:col-span-2 md:col-span-2">
                   <Label htmlFor="farmer">
                     {t("milkCollection.farmerName")}
                   </Label>
                   <SearchableFarmerSelect
                     id="farmer"
+                    tabIndex={1}
                     farmers={farmers}
                     value={selectedFarmer}
                     onValueChange={setSelectedFarmer}
                     disabled={farmersLoading}
                     placeholder={t("milkCollection.selectFarmer")}
+                    searchPlaceholder={t("milkCollection.searchFarmerByNumberOrName")}
+                    autoSelectByFarmerNumber
+                    onFarmerSelected={() => {
+                      window.setTimeout(() => fatInputRef.current?.focus(), 0);
+                    }}
                   />
                 </div>
 
-                <div className="min-w-[110px] flex-1 space-y-2">
+                <div className="space-y-2 sm:col-span-2 md:col-span-2">
                   <Label htmlFor="fat">{t("milkCollection.fat")}</Label>
                   <Input
+                    ref={fatInputRef}
                     id="fat"
-                    type="text" 
+                    name="fat"
+                    tabIndex={2}
+                    type="text"
+                    autoComplete="off"
                     value={fat}
                     onChange={(e) => setFat(e.target.value)}
+                    onKeyDown={handleFatKeyDown}
+                    onBlur={handleFatBlur}
                     placeholder="0.0"
                     required
                   />
                 </div>
 
-                <div className="min-w-[110px] flex-1 space-y-2">
-                  <Label htmlFor="snf">{t("milkCollection.snf")}</Label>
-                  <Input
-                    id="snf"
-                    type="text"
-                    value={snf}
-                    onChange={(e) => setSnf(e.target.value)}
-                    placeholder="0.0"
-                     
-                  />
-                </div>
-
-                <div className="min-w-[130px] flex-1 space-y-2">
+                <div className="space-y-2 sm:col-span-2 md:col-span-2">
                   <Label htmlFor="quantity">
                     {t("milkCollection.quantity")}
                   </Label>
                   <Input
+                    ref={quantityInputRef}
                     id="quantity"
-                    type="text" 
+                    name="quantity"
+                    tabIndex={3}
+                    type="text"
+                    autoComplete="off"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     placeholder="0.0"
@@ -804,42 +867,120 @@ const MilkCollection: React.FC = () => {
                   />
                 </div>
 
-                <div className="shrink-0 space-y-2">
+                <div className="space-y-2 sm:col-span-2 md:col-span-1">
+                  <Label htmlFor="snf">{t("milkCollection.snf")}</Label>
+                  <Input
+                    id="snf"
+                    name="snf"
+                    tabIndex={-1}
+                    type="text"
+                    autoComplete="off"
+                    value={snf}
+                    onChange={(e) => setSnf(e.target.value)}
+                    placeholder="8.5"
+                     
+                  />
+                </div>
+
+                <div className="space-y-2 sm:col-span-2 md:col-span-1">
+                  <Label htmlFor="clr">{t("milkCollection.clr")}</Label>
+                  <Input
+                    id="clr"
+                    name="clr"
+                    tabIndex={-1}
+                    type="text"
+                    autoComplete="off"
+                    value={clr}
+                    onChange={(e) => {
+                      const nextClr = e.target.value;
+                      setClr(nextClr);
+                      if (fat.trim()) applySnfFromFat(fat, nextClr);
+                    }}
+                    placeholder="28"
+                  />
+                </div>
+
+                <div className="space-y-2 sm:col-span-6 md:col-span-4">
                   <Label className="invisible select-none" aria-hidden="true">
-                    .
+                    &nbsp;
                   </Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="submit"
-                      disabled={collectingMilk || updatingMilk || loading}
-                    >
-                      {collectingMilk || updatingMilk
-                        ? t("common.loading")
-                        : isEditMode
-                          ? t("common.update")
-                          : t("common.submit")}
-                    </Button>
-                    {isEditMode && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCancelEdit}
-                      >
-                        {t("common.cancel")}
-                      </Button>
-                    )}
+                  <div className="flex flex-nowrap items-center gap-2">
+                  {isEditMode && (
                     <Button
                       type="button"
-                      onClick={handleSaveAndPrint}
-                      disabled={collectingMilk || updatingMilk || loading}
+                      variant="outline"
+                      tabIndex={-1}
+                      size="sm"
+                      className="shrink-0"
+                      onClick={handleCancelEdit}
                     >
-                      {collectingMilk || updatingMilk
-                        ? t("common.loading")
-                        : t("common.saveAndPrint")}
+                      {t("common.cancel")}
                     </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    tabIndex={-1}
+                    size="sm"
+                    className="shrink-0 whitespace-nowrap"
+                    disabled={collectingMilk || updatingMilk || loading}
+                  >
+                    {collectingMilk || updatingMilk
+                      ? t("common.loading")
+                      : t("common.saveAndPrint")}
+                  </Button>
                   </div>
                 </div>
               </div>
+
+              {/* Water / Protein / Lactose row — hidden for now
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3 items-end rounded-md border border-dashed border-border/60 bg-muted/20 p-3">
+                <div className="space-y-1">
+                  <Label htmlFor="water" className="text-xs text-muted-foreground">
+                    {t("milkCollection.water")}
+                  </Label>
+                  <Input
+                    id="water"
+                    name="water"
+                    tabIndex={-1}
+                    type="text"
+                    value={water}
+                    onChange={(e) => setWater(e.target.value)}
+                    placeholder="0.0"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="protein" className="text-xs text-muted-foreground">
+                    {t("milkCollection.protein")}
+                  </Label>
+                  <Input
+                    id="protein"
+                    name="protein"
+                    tabIndex={-1}
+                    type="text"
+                    value={protein}
+                    onChange={(e) => setProtein(e.target.value)}
+                    placeholder="0.0"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="lactose" className="text-xs text-muted-foreground">
+                    {t("milkCollection.lactose")}
+                  </Label>
+                  <Input
+                    id="lactose"
+                    name="lactose"
+                    tabIndex={-1}
+                    type="text"
+                    value={lactose}
+                    onChange={(e) => setLactose(e.target.value)}
+                    placeholder="0.0"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              */}
             </CardContent>
           </form>
         </Card>
@@ -903,7 +1044,7 @@ const MilkCollection: React.FC = () => {
                   setSelectedShift(value === "all" ? "" : (value as "morning" | "evening"))
                 }
               >
-                <SelectTrigger className="w-46">
+                <SelectTrigger id="collectionShiftFilter" className="w-46">
                   <SelectValue placeholder={t("milkCollection.selectShift")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -925,6 +1066,7 @@ const MilkCollection: React.FC = () => {
                 : t("milkCollection.noEntries")}
             </div>
           ) : (
+            <div className="responsive-table-wrap">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1035,6 +1177,7 @@ const MilkCollection: React.FC = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

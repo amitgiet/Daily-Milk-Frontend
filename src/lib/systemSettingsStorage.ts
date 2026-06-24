@@ -1,75 +1,63 @@
 import { DAIRY_BOOK_DB_NAME } from "@/lib/indexedDb";
 
-export type DataSavingPath = "indexeddb" | "localStorage";
+export type DataSavingPath = "indexeddb";
 
-export const DATA_SAVING_PATH_OPTIONS: DataSavingPath[] = [
-  "indexeddb",
-  "localStorage",
-];
+export type DisplayMode = "standard" | "legacy";
+
+export const DISPLAY_MODE_CHANGED_EVENT = "dairybook-display-mode-changed";
+
+export const DATA_SAVING_PATH_OPTIONS: DataSavingPath[] = ["indexeddb"];
 
 export interface SystemSettings {
   dataSavingPaths: DataSavingPath[];
+  displayMode: DisplayMode;
 }
 
 const SYSTEM_SETTINGS_KEY = "dairyBookSystemSettings";
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   dataSavingPaths: ["indexeddb"],
+  displayMode: "standard",
 };
 
 function isDataSavingPath(value: unknown): value is DataSavingPath {
-  return value === "indexeddb" || value === "localStorage";
+  return value === "indexeddb";
 }
 
-function normalizeDataSavingPaths(paths: unknown): DataSavingPath[] {
-  if (!Array.isArray(paths)) return DEFAULT_SYSTEM_SETTINGS.dataSavingPaths;
+function normalizeDataSavingPaths(_paths: unknown): DataSavingPath[] {
+  return DEFAULT_SYSTEM_SETTINGS.dataSavingPaths;
+}
 
-  const unique = paths.filter(isDataSavingPath);
-  return unique.length > 0 ? unique : DEFAULT_SYSTEM_SETTINGS.dataSavingPaths;
+function normalizeDisplayMode(value: unknown): DisplayMode {
+  return value === "legacy" ? "legacy" : "standard";
 }
 
 function parseStoredSettings(parsed: Record<string, unknown>): SystemSettings {
+  const base = { ...DEFAULT_SYSTEM_SETTINGS };
+
   if (Array.isArray(parsed.dataSavingPaths)) {
-    return {
-      dataSavingPaths: normalizeDataSavingPaths(parsed.dataSavingPaths),
-    };
+    base.dataSavingPaths = normalizeDataSavingPaths(parsed.dataSavingPaths);
+  } else if (isDataSavingPath(parsed.dataSavingPath)) {
+    base.dataSavingPaths = [parsed.dataSavingPath];
+  } else if (parsed.dataSavingPath === "jsonFile") {
+    base.dataSavingPaths = DEFAULT_SYSTEM_SETTINGS.dataSavingPaths;
   }
 
-  if (isDataSavingPath(parsed.dataSavingPath)) {
-    return {
-      dataSavingPaths: [parsed.dataSavingPath],
-    };
-  }
+  base.displayMode = normalizeDisplayMode(parsed.displayMode);
 
-  if (parsed.dataSavingPath === "jsonFile") {
-    return DEFAULT_SYSTEM_SETTINGS;
-  }
-
-  return DEFAULT_SYSTEM_SETTINGS;
+  return base;
 }
 
-export function getDataSavingPathLabel(path: DataSavingPath) {
-  switch (path) {
-    case "localStorage":
-      return "Browser Local Storage";
-    case "indexeddb":
-    default:
-      return "Browser Database (IndexedDB)";
-  }
+export function getDataSavingPathLabel(_path: DataSavingPath = "indexeddb") {
+  return "Browser Database (IndexedDB)";
 }
 
-export function getDataSavingPathsLabel(paths: DataSavingPath[]) {
-  return paths.map((path) => getDataSavingPathLabel(path)).join(", ");
+export function getDataSavingPathsLabel(_paths?: DataSavingPath[]) {
+  return getDataSavingPathLabel("indexeddb");
 }
 
-export function getDataSavingPathDescription(path: DataSavingPath) {
-  switch (path) {
-    case "localStorage":
-      return "Stores settings in browser local storage. Suitable for small data only.";
-    case "indexeddb":
-    default:
-      return `Stores farmers, milk rates, and offline entries in IndexedDB (${DAIRY_BOOK_DB_NAME}). Recommended for offline use.`;
-  }
+export function getDataSavingPathDescription(_path: DataSavingPath = "indexeddb") {
+  return `Stores farmers, milk rates, and offline entries in IndexedDB (${DAIRY_BOOK_DB_NAME}). Recommended for offline use.`;
 }
 
 export function getSystemSettings(): SystemSettings {
@@ -90,8 +78,11 @@ export function saveSystemSettings(settings: SystemSettings): void {
     JSON.stringify({
       ...settings,
       dataSavingPaths: normalizeDataSavingPaths(settings.dataSavingPaths),
+      displayMode: normalizeDisplayMode(settings.displayMode),
     }),
   );
+
+  window.dispatchEvent(new CustomEvent(DISPLAY_MODE_CHANGED_EVENT));
 }
 
 export function getActiveDataSavingPaths(): DataSavingPath[] {

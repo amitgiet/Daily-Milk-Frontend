@@ -52,7 +52,9 @@ import {
   HardDrive,
   FolderOpen,
   AlertTriangle,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useBackupFolder } from "@/hooks/useBackupFolder";
 import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
@@ -65,18 +67,18 @@ import {
   DEFAULT_MILK_RATE_SETTINGS,
   fetchAndSyncMilkRateSettings,
   getMilkRateSettings,
+  type MilkRateSettingsRecord,
   updateAndSyncMilkRateSettings,
 } from "@/lib/milkRateStorage";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  DATA_SAVING_PATH_OPTIONS,
-  type DataSavingPath,
+  type DisplayMode,
   getDataSavingPathDescription,
-  getDataSavingPathsLabel,
   getSystemSettings,
   saveSystemSettings,
 } from "@/lib/systemSettingsStorage";
 import { BACKUP_FOLDER_JSON_FILES } from "@/lib/backupFileNames";
+import { resetInteractionLocks } from "@/lib/uiCleanup";
 
 type AccountTab =
   | "profile"
@@ -133,6 +135,7 @@ function getBillingCycleLabel(durationDays: number, t: (key: string) => string) 
 export default function Settings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const { user, dairySubscription, hasSubscription, updateUser, syncFromProfile } = useAuth();
   const [show2FADialog, setShow2FADialog] = useState(false);
   const [showLoginHistoryDialog, setShowLoginHistoryDialog] = useState(false);
@@ -153,12 +156,8 @@ export default function Settings() {
   });
 
   // Milk Rate Settings State
-  const [milkRateSettings, setMilkRateSettings] = useState({
-    fatRate: "2.00",
-    snfRate: "1.00",
-    govtSubsidy: "0.00",
-    formulaType: "fatOnly", // fatOnly, fatSnf
-  });
+  const [milkRateSettings, setMilkRateSettings] =
+    useState<MilkRateSettingsRecord>(DEFAULT_MILK_RATE_SETTINGS);
   const [isLoadingMilkRates, setIsLoadingMilkRates] = useState(false);
   const [isSavingMilkRates, setIsSavingMilkRates] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
@@ -169,7 +168,7 @@ export default function Settings() {
   const [profileSubscription, setProfileSubscription] =
     useState<ProfileSubscription | null>(null);
   const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
-  const [dataSavingPaths, setDataSavingPaths] = useState<DataSavingPath[]>(["indexeddb"]);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("standard");
   const [isSavingSystemSettings, setIsSavingSystemSettings] = useState(false);
   const profilePictureInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -198,8 +197,17 @@ export default function Settings() {
 
   useEffect(() => {
     const settings = getSystemSettings();
-    setDataSavingPaths(settings.dataSavingPaths);
+    setDisplayMode(settings.displayMode);
   }, []);
+
+  useEffect(() => {
+    if (user?.roleId === UserRole.ADMIN) {
+      const adminHiddenTabs: AccountTab[] = ["subscription", "milkRates", "system"];
+      if (adminHiddenTabs.includes(activeTab)) {
+        setActiveTab("profile");
+      }
+    }
+  }, [user?.roleId, activeTab]);
 
   const loadProfile = async () => {
     if (!user) return;
@@ -306,15 +314,15 @@ export default function Settings() {
     }
   };
 
-  // Load milk rate settings on component mount (admin and dairy users)
+  // Load milk rate settings on component mount (dairy users only)
   useEffect(() => {
-    if (user && (user.roleId === UserRole.ADMIN || user.roleId === UserRole.DAIRY)) {
+    if (user?.roleId === UserRole.DAIRY) {
       loadMilkRateSettings();
     }
   }, [user]);
 
   const loadMilkRateSettings = async () => {
-    if (!user || (user.roleId !== UserRole.ADMIN && user.roleId !== UserRole.DAIRY)) {
+    if (!user || user.roleId !== UserRole.DAIRY) {
       return;
     }
 
@@ -613,7 +621,6 @@ export default function Settings() {
     }
   };
 
-  const isDairyUser = user?.roleId === UserRole.DAIRY;
   const isSubscriptionActive = profileSubscription
     ? profileSubscription.status === "active"
     : hasSubscription && dairySubscription?.status === "active";
@@ -682,30 +689,10 @@ export default function Settings() {
     return format(parsed, "PPpp");
   };
 
-  const toggleDataSavingPath = (path: DataSavingPath, checked: boolean) => {
-    setDataSavingPaths((current) => {
-      if (checked) {
-        return current.includes(path) ? current : [...current, path];
-      }
-
-      if (current.length === 1) {
-        toast.error(t("settings.selectAtLeastOneDataPath"));
-        return current;
-      }
-
-      return current.filter((item) => item !== path);
-    });
-  };
-
   const handleSaveSystemSettings = async () => {
-    if (dataSavingPaths.length === 0) {
-      toast.error(t("settings.selectAtLeastOneDataPath"));
-      return;
-    }
-
     setIsSavingSystemSettings(true);
     try {
-      saveSystemSettings({ dataSavingPaths });
+      saveSystemSettings({ dataSavingPaths: ["indexeddb"], displayMode });
       toast.success(t("settings.systemSettingsSaved"));
     } catch (error) {
       console.error("Failed to save system settings:", error);
@@ -715,7 +702,22 @@ export default function Settings() {
     }
   };
 
-  const accountNavItems: { id: AccountTab; icon: typeof User; label: string }[] = [
+  const isAdminUser = user?.roleId === UserRole.ADMIN;
+  const adminHiddenTabs: AccountTab[] = ["subscription", "milkRates", "system"];
+
+  const showAccountNavigation =
+    user?.roleId === UserRole.DAIRY ||
+    user?.roleId === UserRole.ADMIN ||
+    user?.roleId === UserRole.FARMER;
+
+  function handleAccountTabChange(tab: AccountTab) {
+    if (isAdminUser && adminHiddenTabs.includes(tab)) return;
+
+    setActiveTab(tab);
+    resetInteractionLocks();
+  }
+
+  const allAccountNavItems: { id: AccountTab; icon: typeof User; label: string }[] = [
     { id: "profile", icon: User, label: t("settings.profile") },
     { id: "subscription", icon: CreditCard, label: t("settings.subscriptionTab") },
     { id: "address", icon: MapPin, label: t("settings.addressDetails") },
@@ -725,14 +727,19 @@ export default function Settings() {
     { id: "system", icon: HardDrive, label: t("settings.system") },
   ];
 
+  const accountNavItems = allAccountNavItems.filter(
+    (item) => !isAdminUser || !adminHiddenTabs.includes(item.id),
+  );
+
   const showProfileSection = activeTab === "profile";
   const showSubscriptionSection =
-    activeTab === "profile" || activeTab === "subscription";
+    !isAdminUser &&
+    (activeTab === "profile" || activeTab === "subscription");
   const showAddressSection = activeTab === "profile" || activeTab === "address";
-  const showMilkRatesSection = activeTab === "milkRates";
+  const showMilkRatesSection = !isAdminUser && activeTab === "milkRates";
   const showSecuritySection = activeTab === "security";
   const showNotificationsSection = activeTab === "notifications";
-  const showSystemSection = activeTab === "system";
+  const showSystemSection = !isAdminUser && activeTab === "system";
 
   const renderProfileCard = () => (
     <Card className="border border-border/60 shadow-sm">
@@ -806,14 +813,18 @@ export default function Settings() {
             </div>
           </div>
           <div className="space-y-5 flex-1">
-            <div>
-              <p className="text-sm text-muted-foreground">{t("settings.dairyCode")}</p>
-              <p className="text-lg font-semibold">{userData?.dairyCode || "-"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{t("settings.referralCode")}</p>
-              <p className="text-base">{userData?.referralCode || "-"}</p>
-            </div>
+            {!isAdminUser && (
+              <>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t("settings.dairyCode")}</p>
+                  <p className="text-lg font-semibold">{userData?.dairyCode || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t("settings.referralCode")}</p>
+                  <p className="text-base">{userData?.referralCode || "-"}</p>
+                </div>
+              </>
+            )}
             <div>
               <p className="text-sm text-muted-foreground">{t("settings.memberSince")}</p>
               <p className="text-base">{formatMemberSince(
@@ -885,15 +896,17 @@ export default function Settings() {
         </div>
         <div
           className={cn(
-            "flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg px-4 py-3",
-            isSubscriptionActive ? "bg-green-50" : "bg-muted/50"
+            "flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg border px-4 py-3",
+            isSubscriptionActive
+              ? "border-green-500/30 bg-green-500/10"
+              : "border-border bg-muted/40"
           )}
         >
           <div className="flex items-center gap-2 text-sm">
             {isSubscriptionActive ? (
               <>
-                <Check className="h-4 w-4 text-green-600 shrink-0" />
-                <span className="text-green-800">{t("settings.subscriptionActiveMessage")}</span>
+                <Check className="h-4 w-4 text-green-400 shrink-0" />
+                <span className="text-green-400">{t("settings.subscriptionActiveMessage")}</span>
               </>
             ) : (
               <span className="text-muted-foreground">{t("settings.subscriptionInactiveMessage")}</span>
@@ -966,6 +979,7 @@ export default function Settings() {
           </div>
         ) : (
           <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fatRate">{t("settings.fatRate")}</Label>
               <Input
@@ -1027,6 +1041,46 @@ export default function Settings() {
               </p>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="fixClrBuff">{t("settings.fixClrBuff")}</Label>
+              <Input
+                id="fixClrBuff"
+                type="number"
+                step="0.01"
+                min="0"
+                value={milkRateSettings.fixClrBuff}
+                onChange={(e) =>
+                  setMilkRateSettings((prev) => ({
+                    ...prev,
+                    fixClrBuff: e.target.value,
+                  }))
+                }
+                placeholder="28"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("settings.fixClrBuffDescription")}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fixSnfBuff">{t("settings.fixSnfBuff")}</Label>
+              <Input
+                id="fixSnfBuff"
+                type="number"
+                step="0.01"
+                min="0"
+                value={milkRateSettings.fixSnfBuff}
+                onChange={(e) =>
+                  setMilkRateSettings((prev) => ({
+                    ...prev,
+                    fixSnfBuff: e.target.value,
+                  }))
+                }
+                placeholder="8.5"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("settings.fixSnfBuffDescription")}
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="formulaType">{t("settings.formulaType")}</Label>
               <Select
                 value={milkRateSettings.formulaType}
@@ -1037,7 +1091,7 @@ export default function Settings() {
                   }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="formulaType">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1045,6 +1099,7 @@ export default function Settings() {
                   <SelectItem value="fatSnf">{t("settings.fatSnf")}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
             </div>
             <Button
               onClick={handleSaveMilkRates}
@@ -1254,7 +1309,29 @@ export default function Settings() {
         </CardTitle>
         <CardDescription>{t("settings.preferences")}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between gap-4 rounded-lg border bg-background p-4">
+          <div className="space-y-1">
+            <p className="font-medium flex items-center gap-2">
+              <Sun className="h-4 w-4" />
+              {t("settings.appearance")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("settings.themeDescription")}
+            </p>
+          </div>
+          <Select value={theme ?? "system"} onValueChange={setTheme}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder={t("settings.theme")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="light">{t("settings.themeLight")}</SelectItem>
+              <SelectItem value="dark">{t("settings.themeDark")}</SelectItem>
+              <SelectItem value="system">{t("settings.themeSystem")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="font-medium">{t("settings.notifications")}</p>
@@ -1278,52 +1355,36 @@ export default function Settings() {
         <CardDescription>{t("settings.systemSettingsDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-3">
-          <Label>{t("settings.dataSavingPaths")}</Label>
+        <div className="space-y-3 rounded-lg border bg-background p-4">
+          <Label htmlFor="display-mode">{t("settings.displayMode")}</Label>
           <p className="text-sm text-muted-foreground">
-            {t("settings.selectDataSavingPaths")}
+            {t("settings.displayModeDescription")}
           </p>
-          <div className="space-y-3">
-            {DATA_SAVING_PATH_OPTIONS.map((path) => {
-              const pathLabelKey =
-                path === "indexeddb"
-                  ? "settings.dataPathIndexedDb"
-                  : "settings.dataPathLocalStorage";
-
-              return (
-                <div
-                  key={path}
-                  className="flex items-start gap-3 rounded-lg border bg-background p-4"
-                >
-                  <Checkbox
-                    id={`data-saving-path-${path}`}
-                    checked={dataSavingPaths.includes(path)}
-                    onCheckedChange={(checked) =>
-                      toggleDataSavingPath(path, checked === true)
-                    }
-                  />
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`data-saving-path-${path}`}
-                      className="cursor-pointer font-medium"
-                    >
-                      {t(pathLabelKey)}
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      {getDataSavingPathDescription(path)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <Select
+            value={displayMode}
+            onValueChange={(value) => setDisplayMode(value as DisplayMode)}
+          >
+            <SelectTrigger id="display-mode" className="max-w-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="standard">{t("settings.displayModeStandard")}</SelectItem>
+              <SelectItem value="legacy">{t("settings.displayModeLegacy")}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-          <p className="text-sm font-medium">{t("settings.currentDataPath")}</p>
-          <p className="text-sm text-muted-foreground">
-            {getDataSavingPathsLabel(dataSavingPaths)}
-          </p>
+        <div className="space-y-3">
+          <Label>{t("settings.dataSavingPaths")}</Label>
+          <div className="flex items-start gap-3 rounded-lg border bg-background p-4">
+            <HardDrive className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">{t("settings.dataPathIndexedDb")}</p>
+              <p className="text-sm text-muted-foreground">
+                {getDataSavingPathDescription("indexeddb")}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
@@ -1446,9 +1507,13 @@ export default function Settings() {
 
   return (
     <div className="p-6">
-      {isDairyUser ? (
-        <div className="flex flex-col lg:flex-row gap-6">
-          <aside className="lg:w-64 shrink-0 space-y-4">
+      {showAccountNavigation ? (
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => handleAccountTabChange(value as AccountTab)}
+          className="flex flex-col lg:flex-row gap-6"
+        >
+          <aside className="relative z-30 shrink-0 space-y-4 lg:sticky lg:top-20 lg:w-64 lg:self-start">
             <div>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />
@@ -1458,25 +1523,19 @@ export default function Settings() {
                 {t("settings.manageProfilePreferences")}
               </p>
             </div>
-            <nav className="space-y-1">
+            <TabsList className="flex h-auto w-full flex-col items-stretch gap-1 bg-transparent p-0">
               {accountNavItems.map(({ id, icon: Icon, label }) => (
-                <button
+                <TabsTrigger
                   key={id}
-                  type="button"
-                  onClick={() => setActiveTab(id)}
-                  className={cn(
-                    "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    activeTab === id
-                      ? "bg-green-50 text-primary"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  )}
+                  value={id}
+                  className="w-full justify-start gap-3 rounded-lg px-3 py-2.5 text-sm font-medium data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-none"
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   {label}
-                </button>
+                </TabsTrigger>
               ))}
-            </nav>
-            <div className="rounded-lg bg-green-50 p-4 space-y-2">
+            </TabsList>
+            <div className="rounded-lg bg-muted/50 p-4 space-y-2">
               <div className="flex items-center gap-2 text-primary font-medium">
                 <CircleHelp className="h-4 w-4" />
                 {t("settings.needHelp")}
@@ -1492,7 +1551,7 @@ export default function Settings() {
             </div>
           </aside>
 
-          <div className="flex-1 space-y-6 min-w-0">
+          <div className="relative z-0 flex-1 space-y-6 min-w-0">
             {isLoadingProfile ? (
               <div className="flex items-center justify-center py-16 text-muted-foreground">
                 {t("settings.loadingProfile")}
@@ -1509,7 +1568,7 @@ export default function Settings() {
               </>
             )}
           </div>
-        </div>
+        </Tabs>
       ) : (
         <div className="space-y-6">
           <div>

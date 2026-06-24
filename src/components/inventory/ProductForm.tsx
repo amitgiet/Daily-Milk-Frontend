@@ -94,7 +94,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         <div className="space-y-2">
           <Label htmlFor="category">Category *</Label>
           <Select value={selectedCategory} onValueChange={(value) => setValue("category", value)}>
-            <SelectTrigger>
+            <SelectTrigger id="category">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
@@ -127,7 +127,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         <div className="space-y-2">
           <Label htmlFor="unit">Unit *</Label>
           <Select value={selectedUnit} onValueChange={(value) => setValue("unit", value as "Liters" | "kg" | "Units")}>
-            <SelectTrigger>
+            <SelectTrigger id="unit">
               <SelectValue placeholder="Select unit" />
             </SelectTrigger>
             <SelectContent>

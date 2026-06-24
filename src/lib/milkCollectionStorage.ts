@@ -11,6 +11,7 @@ import {
   OFFLINE_MILK_COLLECTIONS_STORE,
   openDairyBookDb,
 } from "@/lib/indexedDb";
+import { belongsToAuthDairy, getAuthDairyId } from "@/lib/authSession";
 
 export const OFFLINE_MILK_ENTRIES_UPDATED_EVENT = "offline-milk-entries-updated";
 
@@ -29,6 +30,12 @@ export interface MilkCollectionPayload {
   subsidyDeduction : number;
   subsidyAmount : number; 
   totalAmount: number; 
+}
+
+export interface MilkCollectionUpdatePayload {
+  quantity: number;
+  fat: number;
+  snf: number;
 }
 
 export interface OfflineMilkSyncPayload {
@@ -179,18 +186,6 @@ function roundSyncNumber(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function getAuthDairyId(): number | null {
-  try {
-    const rawUser = localStorage.getItem("user");
-    if (!rawUser) return null;
-
-    const user = JSON.parse(rawUser) as { dairyId?: number | null };
-    return user.dairyId ?? null;
-  } catch {
-    return null;
-  }
-}
-
 function parseSyncApiResponse(data: unknown): OfflineMilkSyncResponse | null {
   if (!data || typeof data !== "object") return null;
 
@@ -245,6 +240,7 @@ export async function getOfflineMilkEntries(): Promise<OfflineMilkEntry[]> {
         const entries = (request.result as OfflineMilkEntry[]) ?? [];
         resolve(
           entries
+            .filter((entry) => belongsToAuthDairy(entry.dairyId))
             .map((entry) => normalizeOfflineMilkEntryFinancials(entry, settings))
             .sort(
               (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime(),
@@ -277,6 +273,7 @@ export async function saveLocalMilkEntry(
 
   const entry: OfflineMilkEntry = {
     ...payload,
+    dairyId: payload.dairyId ?? getAuthDairyId() ?? undefined,
     fatRate: parseFloat(settings.fatRate),
     snfRate: parseFloat(settings.snfRate),
     rate: financials.rate,
@@ -399,6 +396,13 @@ export function mapOfflineEntryToSyncPayload(
     subsidyAmount: roundSyncNumber(Number(entry.subsidyAmount)),
     totalAmount: roundSyncNumber(Number(entry.totalAmount)),
   };
+}
+
+export async function updateMilkCollectionEntry(
+  id: number,
+  payload: MilkCollectionUpdatePayload,
+) {
+  return apiCall(allRoutes.milkCollection.update(id), "put", payload);
 }
 
 export async function syncOfflineMilkEntries(): Promise<{

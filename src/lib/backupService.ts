@@ -3,6 +3,7 @@ import {
   openDairyBookDb,
   SETTINGS_STORE,
 } from "@/lib/indexedDb";
+import { belongsToAuthDairy } from "@/lib/authSession";
 import {
   getOfflineMilkEntries,
   isUnsyncedEntry,
@@ -653,7 +654,9 @@ export class BackupService {
     const db = await openDairyBookDb();
 
     try {
-      for (const entry of backup.entries) {
+      for (const entry of backup.entries.filter((item) =>
+        belongsToAuthDairy(item.dairyId),
+      )) {
         if (existingIds.has(entry.localId)) {
           skipped += 1;
           continue;

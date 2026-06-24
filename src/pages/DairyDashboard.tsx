@@ -760,6 +760,7 @@ export default function DairyDashboard() {
                 {t("common.loading")}
               </div>
             ) : (
+              <div className="responsive-table-wrap">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -810,6 +811,7 @@ export default function DairyDashboard() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -1087,7 +1089,7 @@ export default function DairyDashboard() {
               </div>
             ) : farmersWithPending.length > 0 ? (
               <div className="space-y-3">
-                <div className="max-h-[300px] overflow-y-auto rounded-md border">
+                <div className="max-h-[300px] overflow-y-auto rounded-md border responsive-table-wrap">
                   <Table>
                     <TableHeader>
                       <TableRow>

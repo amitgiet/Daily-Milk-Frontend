@@ -32,6 +32,7 @@ import { apiCall } from "@/lib/apiCall";
 import { allRoutes } from "@/lib/apiRoutes";
 import { toast } from "react-toastify";
 import { SubscriptionPlan } from "@/types/subscription";
+import { parsePlanFeatures } from "@/lib/subscriptionPlanUtils";
 
 export default function SubscriptionPlans() {
   const { t } = useTranslation();
@@ -176,36 +177,27 @@ export default function SubscriptionPlans() {
               <CardContent className="space-y-4 flex-1 flex flex-col">
                 <div className="flex flex-col justify-between h-full">
                 {/* Features */}
-                {plan.features &&
-                  (() => {
-                    let features: string[] = [];
+                {(() => {
+                  const features = parsePlanFeatures(plan.features);
 
-                    try {
-                      features = JSON.parse(plan.features as unknown as string);
-                    } catch (error) {
-                      console.error("Failed to parse plan.features:", error);
-                    }
-
-                    return features.length > 0 ? (  
-                      <div className="space-y-3">
-                        {features.map(
-                          (feature: string, featureIndex: number) => (
-                            <div
-                              key={featureIndex}
-                              className="flex items-center gap-3"
-                            >
-                              <div className="text-primary">
-                                {getFeatureIcon(feature)}
-                              </div>
-                              <span className="text-sm text-muted-foreground">
-                                {feature}
-                              </span>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    ) : null;
-                  })()}
+                  return features.length > 0 ? (
+                    <div className="space-y-3">
+                      {features.map((feature, featureIndex) => (
+                        <div
+                          key={featureIndex}
+                          className="flex items-center gap-3"
+                        >
+                          <div className="text-primary">
+                            {getFeatureIcon(feature)}
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {feature}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
 
                 {/* Default Features */}
                 <div className="space-y-3 pt-4">

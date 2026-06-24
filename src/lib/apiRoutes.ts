@@ -63,7 +63,7 @@ export const allRoutes = {
     },
     get: (id: string | number) => `/admin/milk/${id}`,
     printReceipt: (id: string | number) => `/admin/milk/print-receipt/${id}`,
-    update: (id: string | number) => `/admin/milk/${id}`,
+    update: (id: string | number) => `/admin/milk/update/${id}`,
     delete: (id: string | number) => `/admin/milk/${id}`,
     getUnpaidMilkCollections: (farmerId: string | number) =>
       `/admin/milk/get-unpaid-milk-collections?farmerId=${farmerId}`,
@@ -154,6 +154,12 @@ export const allRoutes = {
     add: "/admin/milk-dispatches",
     update: (id: string | number) => `/admin/milk-dispatches/${id}`,
     delete: (id: string | number) => `/admin/milk-dispatches/${id}`,
+  },
+  dairies: {
+    list: (page: number, limit: number, search = "") =>
+      `/admin/get-dairies?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
+    get: (id: string | number) => `/admin/get-dairy/${id}`,
+    add: "/admin/dairy-registeration",
   },
   dairy: {
     rates: "/admin/dairy/rates",

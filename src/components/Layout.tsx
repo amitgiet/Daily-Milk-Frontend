@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import LanguageSwitcher from "./LanguageSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
 import { NotificationPopup } from "./NotificationPopup";
 import {
   NetworkStatusBadge,
@@ -45,15 +46,18 @@ import {
   getRoleName,
   isSubscriptionActive,
 } from "@/lib/permissions";
+import { resetInteractionLocks } from "@/lib/uiCleanup";
+import { useHasOfflineMilkEntries } from "@/hooks/useHasOfflineMilkEntries";
 
 import logo from '../assets/logo.png';
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [subscriptionMenuOpen, setSubscriptionMenuOpen] = useState(true);
+  const [subscriptionMenuOpen, setSubscriptionMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, logout, hasSubscription, dairySubscription } = useAuth();
+  const hasOfflineMilkEntries = useHasOfflineMilkEntries();
 
   // Get user role
   const userRole = user?.roleId || 1;
@@ -68,6 +72,12 @@ export default function Layout() {
         ? "/dairy-dashboard"
         : "/";
 
+  const offlineDataNavItem = {
+    name: t("navigation.offlineData"),
+    href: "/offline-data",
+    icon: Database,
+  };
+
   // Define navigation items based on subscription status
   const getNavigationItems = () => {
     // Special handling for roleId 3 (Farmer) - hide subscription plans, show milk collection
@@ -79,11 +89,7 @@ export default function Layout() {
           href: "/milk-collection",
           icon: Milk,
         },
-        {
-          name: t("navigation.offlineData"),
-          href: "/offline-data",
-          icon: Database,
-        },
+        ...(hasOfflineMilkEntries ? [offlineDataNavItem] : []),
         { name: t("navigation.settings"), href: "/settings", icon: Settings },
       ];
     }
@@ -108,11 +114,7 @@ export default function Layout() {
         href: "/milk-collection",
         icon: Milk,
       },
-      {
-        name: t("navigation.offlineData"),
-        href: "/offline-data",
-        icon: Database,
-      },
+      ...(hasOfflineMilkEntries ? [offlineDataNavItem] : []),
       { name: t("navigation.customers"), href: "/customers", icon: User },
       {
         name: t("dairyListing.dairies", "Dairies"),
@@ -171,7 +173,7 @@ export default function Layout() {
     return allNavigation.filter((item) => {
       if (
         userRole === 1 &&
-        ["/milk-collection", "/offline-data", "/customers", "/diary-dispatch", "/subscription-plans"].includes(
+        ["/milk-collection", "/offline-data", "/customers", "/diary-dispatch", "/subscription-plans", "/payment-management"].includes(
           item.href,
         )
       ) {
@@ -200,6 +202,12 @@ export default function Layout() {
     (item) => item.href === location.pathname,
   );
 
+  useEffect(() => {
+    setSidebarOpen(false);
+    resetInteractionLocks();
+    setSubscriptionMenuOpen(isSubscriptionRoute);
+  }, [location.pathname, isSubscriptionRoute]);
+
   const renderNavigation = (isMobile = false) => (
     <>
       {mainNavigation.map((item) => (
@@ -208,7 +216,7 @@ export default function Layout() {
           to={item.href}
           className={({ isActive }) =>
             cn(
-              "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+              "nav-link-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
               isActive
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted",
@@ -254,7 +262,7 @@ export default function Layout() {
                   to={item.href}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      "nav-link-item flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                       isActive
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted",
@@ -290,17 +298,14 @@ export default function Layout() {
     <div className="min-h-screen bg-background">
       <NetworkStatusNotifier />
       {/* Mobile sidebar */}
-      <div
-        className={cn(
-          "fixed inset-0 z-50 lg:hidden",
-          sidebarOpen ? "block" : "hidden",
-        )}
-      >
-        <div
-          className="fixed inset-0 bg-foreground/80"
-          onClick={() => setSidebarOpen(false)}
-        />
-        <div className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border">
+      {sidebarOpen ? (
+        <div className="fixed inset-0 z-50 xl:hidden">
+          <div
+            className="fixed inset-0 bg-foreground/80"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-card border-r border-border">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center space-x-2">
               {/* <Milk className="h-8 w-8 text-primary" /> */}
@@ -337,14 +342,15 @@ export default function Layout() {
               </div>
             </div>
           )}
-          <nav className="px-4 space-y-2">
+          <nav className="flex-1 overflow-y-auto px-4 space-y-2">
             {renderNavigation(true)}
           </nav>
         </div>
       </div>
+      ) : null}
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
+      <div className="hidden xl:fixed xl:inset-y-0 xl:z-50 xl:flex xl:w-56 xl:flex-col">
         <div className="flex grow flex-col bg-card border-r border-border">
           <div className="flex h-16 shrink-0 items-center px-6">
             <div className="flex items-center space-x-2">
@@ -384,29 +390,31 @@ export default function Layout() {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="xl:pl-56">
         {/* Top bar */}
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="sticky top-0 z-40 flex h-14 xl:h-16 shrink-0 items-center border-b border-border bg-card/95 backdrop-blur-sm">
           <button
             type="button"
-            className="border-r border-border px-4 text-muted-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary lg:hidden"
+            className="border-r border-border px-4 text-muted-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary xl:hidden"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
           </button>
 
-          <div className="flex flex-1 justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center">
-              <h1 className="text-lg font-semibold text-foreground">
+          <div className="flex flex-1 justify-between gap-2 px-3 sm:px-4 xl:px-6">
+            <div className="flex items-center min-w-0">
+              <h1 className="text-base xl:text-lg font-semibold text-foreground truncate">
                 {/* {navigation.find((item) => item.href === location.pathname)
                   ?.name || t("navigation.dashboard")} */}
               </h1>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 xl:gap-3">
               <NetworkStatusBadge className="hidden sm:inline-flex" />
 
               <LanguageSwitcher />
+
+              <ThemeToggle />
 
               <NotificationPopup />
 
@@ -415,10 +423,10 @@ export default function Layout() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="flex items-center space-x-2"
+                    className="flex items-center gap-1.5 px-2"
                   >
-                    <User className="h-5 w-5" />
-                    <span className="hidden sm:block text-sm text-muted-foreground">
+                    <User className="h-5 w-5 shrink-0" />
+                    <span className="hidden xl:block text-sm text-muted-foreground max-w-[12rem] truncate">
                       {userHeaderLabel}
                     </span>
                     <ChevronDown className="h-4 w-4" />
@@ -455,7 +463,7 @@ export default function Layout() {
                         {t("navigation.subscription")}: {t("navigation.active")}
                       </p>
                     )}
-                    {userRole !== 3 && !hasActiveSubscription && (
+                    {userRole !== 3 && userRole !== 1 && !hasActiveSubscription && (
                       <p className="text-xs text-muted-foreground mt-1 text-destructive">
                         <AlertTriangle className="mr-1 h-3 w-3" />
                         {t("navigation.noActiveSubscription")}
@@ -489,7 +497,7 @@ export default function Layout() {
         <OfflineBanner />
 
         {/* Page content */}
-        <main className="min-h-[calc(100vh-4rem)]">
+        <main className="min-h-[calc(100vh-3.5rem)] xl:min-h-[calc(100vh-4rem)] compact-page">
           <Outlet />
         </main>
       </div>

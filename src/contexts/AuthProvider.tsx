@@ -168,19 +168,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem("authToken", response.data.accessToken);
         localStorage.setItem("isAuthenticated", "true");
 
-        const userData = response.data.user || {
+        const { subscriptionActive, dairySub } = resolveLoginSubscription(
+          response.data,
+        );
+
+        const rawUser = response.data.user || {
           id: 0,
           name: "",
           phone,
           dairyId: 0,
           roleId: 1,
         };
+        const userData: User = {
+          ...rawUser,
+          dairyId:
+            rawUser.dairyId && rawUser.dairyId > 0
+              ? rawUser.dairyId
+              : rawUser.subscription?.dairyId ??
+                dairySub?.dairyId ??
+                rawUser.dairyId ??
+                null,
+        };
         setUser(userData);
         localStorage.setItem("user", JSON.stringify(userData));
-
-        const { subscriptionActive, dairySub } = resolveLoginSubscription(
-          response.data,
-        );
 
         applySubscriptionState(subscriptionActive, dairySub);
         setIsAuthenticated(true);
@@ -222,7 +232,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      await apiCall(allRoutes.auth.logout, "post");
+      await apiCall(allRoutes.auth.logout, "post", {});
     } catch (error) {
       console.error("Logout API error:", error);
     } finally {

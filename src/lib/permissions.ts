@@ -253,7 +253,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
     requiresSubscription: true, // Dairy needs subscription to access
   },
 
-  // Payment Management - Only admin and dairy can access
+  // Payment Management - Dairy users only
   {
     path: "/payment-management",
     permissions: {
@@ -262,7 +262,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
       canEdit: true,
       canDelete: true,
     },
-    roles: [UserRole.ADMIN, UserRole.DAIRY],
+    roles: [UserRole.DAIRY],
     requiresSubscription: true, // Dairy needs subscription to access
   },
 ];

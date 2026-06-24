@@ -18,6 +18,7 @@ import {
 
 export interface DateInputProps {
   id?: string;
+  name?: string;
   value: string;
   onChange: (value: string) => void;
   className?: string;
@@ -26,10 +27,12 @@ export interface DateInputProps {
   disabled?: boolean;
   placeholder?: string;
   disableDate?: (date: Date) => boolean;
+  tabIndex?: number;
 }
 
 export function DateInput({
   id,
+  name,
   value,
   onChange,
   className,
@@ -38,6 +41,7 @@ export function DateInput({
   disabled,
   placeholder = DISPLAY_DATE_FORMAT,
   disableDate,
+  tabIndex,
 }: DateInputProps) {
   const [open, setOpen] = React.useState(false);
   const [text, setText] = React.useState(() => formatDisplayDate(value, ""));
@@ -78,6 +82,8 @@ export function DateInput({
     >
       <Input
         id={id}
+        name={name}
+        tabIndex={tabIndex}
         type="text"
         inputMode="numeric"
         autoComplete="off"
@@ -88,6 +94,12 @@ export function DateInput({
           if (event.key === "Enter") {
             event.preventDefault();
             commitText(text);
+            const form = event.currentTarget.form;
+            if (form) {
+              event.stopPropagation();
+              form.requestSubmit();
+              return;
+            }
             event.currentTarget.blur();
           }
         }}
@@ -105,6 +117,7 @@ export function DateInput({
             type="button"
             variant="ghost"
             size="icon"
+            tabIndex={tabIndex === -1 ? -1 : undefined}
             disabled={disabled}
             className="h-10 w-9 shrink-0 rounded-none rounded-r-md text-muted-foreground hover:bg-transparent hover:text-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
             aria-label="Open calendar"

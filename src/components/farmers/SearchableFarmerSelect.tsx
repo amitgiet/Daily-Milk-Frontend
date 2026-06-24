@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ export interface FarmerSelectOption {
   id: number;
   name: string;
   phone?: string;
+  farmerNumber?: string;
 }
 
 interface SearchableFarmerSelectProps {
@@ -29,8 +30,34 @@ interface SearchableFarmerSelectProps {
   onValueChange: (value: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  searchPlaceholder?: string;
   id?: string;
   className?: string;
+  tabIndex?: number;
+  autoSelectByFarmerNumber?: boolean;
+  onFarmerSelected?: () => void;
+}
+
+function findFarmerByNumber(
+  farmers: FarmerSelectOption[],
+  query: string,
+): FarmerSelectOption | null {
+  const normalized = query.trim();
+  if (!normalized) return null;
+
+  const matches = farmers.filter(
+    (farmer) => farmer.farmerNumber?.trim() === normalized,
+  );
+
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function formatFarmerLabel(farmer: FarmerSelectOption) {
+  const farmerNumber = farmer.farmerNumber?.trim();
+  if (farmerNumber) {
+    return `${farmer.name} (#${farmerNumber})`;
+  }
+  return farmer.name;
 }
 
 export function SearchableFarmerSelect({
@@ -39,15 +66,41 @@ export function SearchableFarmerSelect({
   onValueChange,
   disabled = false,
   placeholder,
+  searchPlaceholder,
   id,
   className,
+  tabIndex,
+  autoSelectByFarmerNumber = false,
+  onFarmerSelected,
 }: SearchableFarmerSelectProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const selectedFarmer = farmers.find(
     (farmer) => farmer.id.toString() === value,
   );
+
+  useEffect(() => {
+    if (!open) setSearch("");
+  }, [open]);
+
+  function selectFarmer(farmerId: string) {
+    onValueChange(farmerId);
+    setOpen(false);
+    setSearch("");
+    onFarmerSelected?.();
+  }
+
+  function tryAutoSelectByFarmerNumber(query: string) {
+    if (!autoSelectByFarmerNumber) return false;
+
+    const match = findFarmerByNumber(farmers, query);
+    if (!match) return false;
+
+    selectFarmer(match.id.toString());
+    return true;
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -55,6 +108,7 @@ export function SearchableFarmerSelect({
         <Button
           id={id}
           type="button"
+          tabIndex={tabIndex}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -66,26 +120,43 @@ export function SearchableFarmerSelect({
           )}
         >
           <span className="truncate">
-            {selectedFarmer?.name ??
-              placeholder ??
-              t("milkCollection.selectFarmer")}
+            {selectedFarmer
+              ? formatFarmerLabel(selectedFarmer)
+              : (placeholder ?? t("milkCollection.selectFarmer"))}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput placeholder={t("dairyListing.searchFarmers")} />
+        <Command shouldFilter>
+          <CommandInput
+            id={id ? `${id}-search` : undefined}
+            name={id ? `${id}-search` : undefined}
+            autoComplete="off"
+            value={search}
+            onValueChange={(nextSearch) => {
+              setSearch(nextSearch);
+              tryAutoSelectByFarmerNumber(nextSearch);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+              if (tryAutoSelectByFarmerNumber(search)) {
+                event.preventDefault();
+              }
+            }}
+            placeholder={
+              searchPlaceholder ?? t("dairyListing.searchFarmers")
+            }
+          />
           <CommandList>
             <CommandEmpty>{t("dairyListing.noFarmersFound")}</CommandEmpty>
             <CommandGroup>
               {farmers.map((farmer) => (
                 <CommandItem
                   key={farmer.id}
-                  value={`${farmer.name} ${farmer.phone ?? ""}`.trim()}
+                  value={`${farmer.farmerNumber ?? ""} ${farmer.name} ${farmer.phone ?? ""}`.trim()}
                   onSelect={() => {
-                    onValueChange(farmer.id.toString());
-                    setOpen(false);
+                    selectFarmer(farmer.id.toString());
                   }}
                 >
                   <Check
@@ -98,9 +169,11 @@ export function SearchableFarmerSelect({
                   />
                   <div className="min-w-0">
                     <p className="truncate">{farmer.name}</p>
-                    {farmer.phone ? (
+                    {farmer.farmerNumber || farmer.phone ? (
                       <p className="truncate text-xs text-muted-foreground">
-                        {farmer.phone}
+                        {[farmer.farmerNumber, farmer.phone]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     ) : null}
                   </div>

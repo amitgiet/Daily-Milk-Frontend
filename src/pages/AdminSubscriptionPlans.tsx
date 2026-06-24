@@ -47,42 +47,7 @@ import {
 } from "@/types/subscription";
 import { usePermissions } from "@/hooks/usePermissions";
 
-// Utility function to parse features from API response
-const parseFeatures = (features: string[] | string | null): string[] => {
-  if (!features) return [];
-
-  if (Array.isArray(features)) {
-    return features;
-  }
-
-  if (typeof features === "string") {
-    try {
-      const parsed = JSON.parse(features);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      console.error("Error parsing features JSON:", error);
-      return [];
-    }
-  }
-
-  return [];
-};
-
-// Utility function to stringify features for API submission
-const stringifyFeatures = (features: string[]): string => {
-  if (!Array.isArray(features)) {
-    console.error("Features is not an array:", features);
-    return JSON.stringify([]);
-  }
-
-  try {
-    const result = JSON.stringify(features);
-    return result;
-  } catch (error) {
-    console.error("Error stringifying features:", error);
-    return JSON.stringify([]);
-  }
-};
+import { parsePlanFeatures } from "@/lib/subscriptionPlanUtils";
 
 export default function AdminSubscriptionPlans() {
   const { t } = useTranslation();
@@ -177,7 +142,7 @@ export default function AdminSubscriptionPlans() {
 
   const handleEdit = (plan: SubscriptionPlan) => {
     setEditingPlan(plan);
-    const parsedFeatures = parseFeatures(plan.features);
+    const parsedFeatures = parsePlanFeatures(plan.features);
     setFormData({
       name: plan.name,
       durationDays: plan.durationDays,
@@ -445,7 +410,7 @@ export default function AdminSubscriptionPlans() {
                       </div>
                       {plan.features &&
                         (() => {
-                          const features = parseFeatures(plan.features);
+                          const features = parsePlanFeatures(plan.features);
                           return features.length > 0 ? (
                             <div>
                               <p className="text-sm font-medium mb-2">

@@ -7,8 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard, Filter, X, User, History } from "lucide-react";
+import { Plus, Phone, Mail, MapPin, Milk, Edit, Trash2, CreditCard, Filter, X, User, History, IndianRupee } from "lucide-react";
 import { cn, getProfilePictureUrl } from "@/lib/utils";
 import {
   Dialog,
@@ -82,6 +81,28 @@ function getFarmerInitials(name: string) {
     .toUpperCase();
 }
 
+function formatFarmerDisplayName(farmer: Farmer) {
+  const farmerNumber = farmer.farmerNumber?.trim();
+  if (farmerNumber) return `${farmer.name} - ${farmerNumber}`;
+  return farmer.name;
+}
+
+function compareFarmersByNumber(a: Farmer, b: Farmer) {
+  const numA = Number.parseInt(a.farmerNumber?.trim() ?? "", 10);
+  const numB = Number.parseInt(b.farmerNumber?.trim() ?? "", 10);
+  const aHasNumber = !Number.isNaN(numA);
+  const bHasNumber = !Number.isNaN(numB);
+
+  if (aHasNumber && bHasNumber) {
+    if (numA !== numB) return numA - numB;
+    return a.name.localeCompare(b.name);
+  }
+
+  if (aHasNumber) return -1;
+  if (bHasNumber) return 1;
+  return a.name.localeCompare(b.name);
+}
+
 // Farmer form schema based on API requirements
 const farmerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -89,6 +110,7 @@ const farmerSchema = z.object({
     .string()
     .min(10, "Phone number must be at least 10 digits")
     .max(15, "Phone number too long"),
+  farmerNumber: z.string().trim().optional(),
 });
 
 type FarmerFormData = z.infer<typeof farmerSchema>;
@@ -118,6 +140,7 @@ export default function Customers() {
     defaultValues: {
       name: "",
       phone: "",
+      farmerNumber: "",
     },
   });
 
@@ -191,6 +214,7 @@ export default function Customers() {
     setEditingFarmer(farmer);
     setValue("name", farmer.name);
     setValue("phone", farmer.phone);
+    setValue("farmerNumber", farmer.farmerNumber ?? "");
     setShowAddDialog(true);
   };
 
@@ -239,9 +263,12 @@ export default function Customers() {
     return (
       farmer.name.toLowerCase().includes(query) ||
       farmer.phone.includes(appliedSearch) ||
+      (farmer.farmerNumber?.toLowerCase().includes(query) ?? false) ||
       (farmer.email?.toLowerCase().includes(query) ?? false)
     );
   });
+
+  const displayedFarmers = [...filteredFarmers].sort(compareFarmersByNumber);
 
   const formatCurrency = (amount?: number) => {
     if (!amount) return "₹0";
@@ -323,7 +350,7 @@ export default function Customers() {
             onSubmit={handleSubmit(handleSubmitFarmer)}
             className="space-y-4"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">{t("farmers.name")} *</Label>
                 <Input
@@ -347,6 +374,19 @@ export default function Customers() {
                 {errors.phone && (
                   <p className="text-sm text-destructive">
                     {errors.phone.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="farmerNumber">{t("farmers.farmerNumber")}</Label>
+                <Input
+                  id="farmerNumber"
+                  {...register("farmerNumber")}
+                  placeholder={t("farmers.farmerNumberPlaceholder")}
+                />
+                {errors.farmerNumber && (
+                  <p className="text-sm text-destructive">
+                    {errors.farmerNumber.message}
                   </p>
                 )}
               </div>
@@ -428,7 +468,7 @@ export default function Customers() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredFarmers.map((farmer) => {
+          {displayedFarmers.map((farmer) => {
             const pendingAmount = Number(farmer.pendingPayment) || 0;
             const hasPendingPayment = pendingAmount > 0;
             const profilePicture = getFarmerProfilePicture(farmer);
@@ -440,7 +480,7 @@ export default function Customers() {
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start gap-3">
-                    <div className="h-14 w-14 shrink-0 rounded-full bg-green-50 border border-green-100 ring-2 ring-green-100 flex items-center justify-center overflow-hidden">
+                    <div className="h-14 w-14 shrink-0 rounded-full bg-primary/10 border border-primary/20 ring-2 ring-primary/10 flex items-center justify-center overflow-hidden">
                       {profilePicture ? (
                         <img
                           src={profilePicture}
@@ -461,14 +501,8 @@ export default function Customers() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <CardTitle className="text-base font-semibold leading-tight truncate">
-                            {farmer.name}
+                            {formatFarmerDisplayName(farmer)}
                           </CardTitle>
-                          <Badge
-                            variant="secondary"
-                            className="mt-1.5 font-mono text-[11px] tracking-wide bg-muted/80"
-                          >
-                            FRM-{String(farmer.id).padStart(4, "0")}
-                          </Badge>
                           {farmer.createdAt && (
                     <p className="text-xs text-muted-foreground text-center pt-0.5">
                       {t("farmers.memberSince")}: {formatDisplayDate(farmer.createdAt)}
@@ -557,23 +591,33 @@ export default function Customers() {
 
                     <div
                       className={cn(
-                        "flex flex-col justify-center rounded-lg border px-3 py-2.5 min-w-0",
+                        "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm min-w-0",
                         hasPendingPayment
-                          ? "border-amber-200/80 bg-amber-50/80"
-                          : "border-green-200/80 bg-green-50/80"
+                          ? "border-amber-500/30 bg-amber-500/10"
+                          : "border-green-500/30 bg-green-500/10"
                       )}
                     >
-                      <p className="text-xs text-muted-foreground truncate">
-                        {t("customers.pendingAmount")}
-                      </p>
-                      <p
-                        className={cn(
-                          "text-base font-semibold leading-tight truncate",
-                          hasPendingPayment ? "text-amber-800" : "text-green-800"
-                        )}
-                      >
-                        {formatCurrency(pendingAmount)}
-                      </p>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-background shadow-sm">
+                        <IndianRupee
+                          className={cn(
+                            "h-4 w-4",
+                            hasPendingPayment ? "text-amber-400" : "text-green-400",
+                          )}
+                        />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground truncate">
+                          {t("customers.pendingAmount")}
+                        </p>
+                        <p
+                          className={cn(
+                            "font-semibold leading-tight truncate",
+                            hasPendingPayment ? "text-amber-400" : "text-green-400"
+                          )}
+                        >
+                          {formatCurrency(pendingAmount)}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -607,7 +651,7 @@ export default function Customers() {
         </div>
       )}
 
-      {!loading && filteredFarmers.length === 0 && (
+      {!loading && displayedFarmers.length === 0 && (
         <div className="text-center py-8">
           <Milk className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">{t("farmers.noFarmers")}</p>

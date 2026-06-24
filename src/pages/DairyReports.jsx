@@ -246,6 +246,7 @@ const DairyReports = () => {
               {t("milkCollection.noEntries")}
             </div>
           ) : (
+            <div className="responsive-table-wrap">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -305,6 +306,7 @@ const DairyReports = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

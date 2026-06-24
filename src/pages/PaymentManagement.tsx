@@ -452,7 +452,7 @@ const PaymentManagement = () => {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="responsive-table-wrap">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -535,7 +535,7 @@ const PaymentManagement = () => {
                 value={formData.farmerId}
                 onValueChange={(value) => handleInputChange("farmerId", value)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="farmerId">
                   <SelectValue placeholder={t("payments.selectFarmer")} />
                 </SelectTrigger>
                 <SelectContent>

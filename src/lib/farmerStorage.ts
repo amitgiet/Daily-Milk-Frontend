@@ -4,11 +4,13 @@ import { isSystemOnline } from "@/lib/networkStatus";
 import { dedupeRequest } from "@/lib/requestCache";
 import { FARMERS_STORE, openDairyBookDb } from "@/lib/indexedDb";
 import { scheduleFarmersBackupSync } from "@/lib/farmersBackupSync";
+import { belongsToAuthDairy, getAuthDairyId } from "@/lib/authSession";
 
 export interface StoredFarmer {
   id: number;
   name: string;
   phone: string;
+  farmerNumber?: string;
   email?: string;
   address?: string;
   dairyId?: number;
@@ -29,6 +31,7 @@ export interface StoredFarmer {
 export interface AddFarmerPayload {
   name: string;
   phone: string;
+  farmerNumber?: string;
   password?: string;
   dairyId?: number;
 }
@@ -36,14 +39,34 @@ export interface AddFarmerPayload {
 export interface UpdateFarmerPayload {
   name?: string;
   phone?: string;
+  farmerNumber?: string;
   password?: string;
   dairyId?: number;
+}
+
+function getDairyFarmerRecord(raw: Record<string, unknown>) {
+  if (!raw.farmer || typeof raw.farmer !== "object") return null;
+  return raw.farmer as Record<string, unknown>;
+}
+
+function resolveFarmerNumber(
+  raw: Record<string, unknown>,
+  dairyFarmer: Record<string, unknown> | null,
+) {
+  return (
+    raw.farmerNumber?.toString() ??
+    raw.farmer_number?.toString() ??
+    dairyFarmer?.farmerNumber?.toString() ??
+    dairyFarmer?.farmer_number?.toString() ??
+    ""
+  );
 }
 
 function normalizeFarmer(raw: unknown): StoredFarmer | null {
   if (!raw || typeof raw !== "object") return null;
 
   const farmer = raw as Record<string, unknown>;
+  const dairyFarmer = getDairyFarmerRecord(farmer);
   const id = Number(farmer.id);
   const name = farmer.name?.toString().trim();
 
@@ -53,9 +76,15 @@ function normalizeFarmer(raw: unknown): StoredFarmer | null {
     id,
     name,
     phone: farmer.phone?.toString() ?? "",
+    farmerNumber: resolveFarmerNumber(farmer, dairyFarmer),
     email: farmer.email?.toString(),
     address: farmer.address?.toString(),
-    dairyId: farmer.dairyId != null ? Number(farmer.dairyId) : undefined,
+    dairyId:
+      farmer.dairyId != null
+        ? Number(farmer.dairyId)
+        : dairyFarmer?.dairyId != null
+          ? Number(dairyFarmer.dairyId)
+          : undefined,
     pendingPayment: farmer.pendingPayment?.toString(),
     profilePicture:
       farmer.profilePicture != null ? String(farmer.profilePicture) : undefined,
@@ -102,10 +131,26 @@ export function parseFarmersFromApiResponse(responseData: unknown): StoredFarmer
         .map(normalizeFarmer)
         .filter((farmer): farmer is StoredFarmer => farmer !== null);
     }
+
+    const singleFarmer = normalizeFarmer(record.data);
+    if (singleFarmer) return [singleFarmer];
   }
 
   const singleFarmer = normalizeFarmer(responseData);
   return singleFarmer ? [singleFarmer] : [];
+}
+
+function withAuthDairyIdOnSave(farmer: StoredFarmer): StoredFarmer {
+  if (farmer.dairyId != null) return farmer;
+
+  const authDairyId = getAuthDairyId();
+  if (authDairyId == null) return farmer;
+
+  return { ...farmer, dairyId: authDairyId };
+}
+
+function filterFarmersForAuthDairy(farmers: StoredFarmer[]): StoredFarmer[] {
+  return farmers.filter((farmer) => belongsToAuthDairy(farmer.dairyId));
 }
 
 async function getAllFarmersFromDb(): Promise<StoredFarmer[]> {
@@ -122,7 +167,11 @@ async function getAllFarmersFromDb(): Promise<StoredFarmer[]> {
       request.onsuccess = () => {
         const farmers = (request.result as StoredFarmer[]) ?? [];
         resolve(
-          farmers.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })),
+          filterFarmersForAuthDairy(
+            farmers.sort((a, b) =>
+              a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+            ),
+          ),
         );
       };
     });
@@ -201,9 +250,7 @@ export async function getStoredFarmers(): Promise<StoredFarmer[]> {
 export async function syncFarmersFromApiResponse(
   responseData: unknown,
 ): Promise<StoredFarmer[]> {
-  const farmers = parseFarmersFromApiResponse(responseData);
-  if (farmers.length === 0) return getAllFarmersFromDb();
-
+  const farmers = filterFarmersForAuthDairy(parseFarmersFromApiResponse(responseData));
   await saveAllFarmersToDb(farmers);
   return farmers;
 }
@@ -220,11 +267,7 @@ export async function fetchAndSyncFarmers(): Promise<StoredFarmer[]> {
         return getAllFarmersFromDb();
       }
 
-      const farmers = parseFarmersFromApiResponse(response.data);
-      if (farmers.length === 0) {
-        return getAllFarmersFromDb();
-      }
-
+      const farmers = filterFarmersForAuthDairy(parseFarmersFromApiResponse(response.data));
       await saveAllFarmersToDb(farmers);
       return farmers;
     } catch (error) {
@@ -240,15 +283,25 @@ async function upsertFarmerFromApiResponse(
 ): Promise<StoredFarmer | null> {
   const parsedFarmers = parseFarmersFromApiResponse(responseData);
   if (parsedFarmers.length === 1) {
-    await upsertFarmerInDb(parsedFarmers[0]);
-    return parsedFarmers[0];
+    const farmer = withAuthDairyIdOnSave(parsedFarmers[0]);
+    if (!belongsToAuthDairy(farmer.dairyId)) return null;
+
+    await upsertFarmerInDb(farmer);
+    return farmer;
   }
 
   if (fallback?.id) {
-    const farmer = normalizeFarmer({ ...fallback, ...responseData });
+    const responseRecord =
+      responseData && typeof responseData === "object"
+        ? (responseData as Record<string, unknown>)
+        : {};
+    const farmer = normalizeFarmer({ ...fallback, ...responseRecord });
     if (farmer) {
-      await upsertFarmerInDb(farmer);
-      return farmer;
+      const scopedFarmer = withAuthDairyIdOnSave(farmer);
+      if (!belongsToAuthDairy(scopedFarmer.dairyId)) return null;
+
+      await upsertFarmerInDb(scopedFarmer);
+      return scopedFarmer;
     }
   }
 

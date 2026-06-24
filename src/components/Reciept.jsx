@@ -22,7 +22,7 @@ const Receipt = ({ receipt }) => {
   const displayDate = formatDisplayDate(receipt.date, receipt.date);
 
   return (
-    <div className="w-[58mm] max-w-[58mm] bg-white p-2 shadow-lg mx-auto border rounded-sm font-mono text-[10px] leading-snug">
+    <div className="w-[58mm] max-w-[58mm] bg-card text-card-foreground p-2 shadow-lg mx-auto border rounded-sm font-mono text-[10px] leading-snug">
       <div className="text-center border-b border-dashed pb-2 mb-2">
         <h2 className="text-xs font-semibold leading-tight break-words">{receipt.dairyName}</h2>
         <p className="text-[9px] text-gray-600">Code: {receipt.code}</p>
